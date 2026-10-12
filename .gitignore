@@ -1,0 +1,12 @@
+# секреты и локальное — никогда в репозиторий
+.env
+.env.local
+.env.*.bak
+*.bak
+.venv/
+.tmp/*
+!.tmp/.gitkeep
+*.duckdb
+*.duckdb.wal
+__pycache__/
+.idea/

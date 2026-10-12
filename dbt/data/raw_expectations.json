@@ -1,0 +1,193 @@
+{
+ "_comment": "Эталон полноты исходных данных Olist (Kaggle olistbr/brazilian-ecommerce). Допуск на суммы 0,01%. geolocation не требуется.",
+ "tolerance": 0.0001,
+ "required": {
+  "orders": {
+   "candidates": [
+    "olist_orders_dataset",
+    "orders",
+    "raw_orders"
+   ],
+   "rows": 99441,
+   "columns": [
+    "order_id",
+    "customer_id",
+    "order_status",
+    "order_purchase_timestamp",
+    "order_approved_at",
+    "order_delivered_customer_date",
+    "order_estimated_delivery_date"
+   ],
+   "aggregates": [
+    {
+     "name": "distinct order_id",
+     "sql": "count(distinct order_id)",
+     "expected": 99441
+    }
+   ]
+  },
+  "order_items": {
+   "candidates": [
+    "olist_order_items_dataset",
+    "order_items",
+    "raw_order_items"
+   ],
+   "rows": 112650,
+   "columns": [
+    "order_id",
+    "order_item_id",
+    "product_id",
+    "seller_id",
+    "price",
+    "freight_value"
+   ],
+   "aggregates": [
+    {
+     "name": "distinct order_id",
+     "sql": "count(distinct order_id)",
+     "expected": 98666
+    },
+    {
+     "name": "sum(price)",
+     "sql": "sum(price)",
+     "expected": 13591643.7
+    },
+    {
+     "name": "sum(freight_value)",
+     "sql": "sum(freight_value)",
+     "expected": 2251909.54
+    }
+   ]
+  },
+  "customers": {
+   "candidates": [
+    "olist_customers_dataset",
+    "customers",
+    "raw_customers"
+   ],
+   "rows": 99441,
+   "columns": [
+    "customer_id",
+    "customer_unique_id",
+    "customer_state",
+    "customer_city"
+   ],
+   "aggregates": [
+    {
+     "name": "distinct customer_unique_id",
+     "sql": "count(distinct customer_unique_id)",
+     "expected": 96096
+    }
+   ]
+  },
+  "products": {
+   "candidates": [
+    "olist_products_dataset",
+    "products",
+    "raw_products"
+   ],
+   "rows": 32951,
+   "columns": [
+    "product_id",
+    "product_category_name",
+    "product_weight_g",
+    "product_photos_qty"
+   ],
+   "aggregates": [
+    {
+     "name": "distinct product_id",
+     "sql": "count(distinct product_id)",
+     "expected": 32951
+    }
+   ]
+  },
+  "sellers": {
+   "candidates": [
+    "olist_sellers_dataset",
+    "sellers",
+    "raw_sellers"
+   ],
+   "rows": 3095,
+   "columns": [
+    "seller_id",
+    "seller_state"
+   ],
+   "aggregates": [
+    {
+     "name": "distinct seller_id",
+     "sql": "count(distinct seller_id)",
+     "expected": 3095
+    }
+   ]
+  },
+  "order_payments": {
+   "candidates": [
+    "olist_order_payments_dataset",
+    "order_payments",
+    "raw_order_payments"
+   ],
+   "rows": 103886,
+   "columns": [
+    "order_id",
+    "payment_type",
+    "payment_installments",
+    "payment_value"
+   ],
+   "aggregates": [
+    {
+     "name": "distinct order_id",
+     "sql": "count(distinct order_id)",
+     "expected": 99440
+    },
+    {
+     "name": "sum(payment_value)",
+     "sql": "sum(payment_value)",
+     "expected": 16008872.12
+    }
+   ]
+  },
+  "order_reviews": {
+   "candidates": [
+    "olist_order_reviews_dataset",
+    "order_reviews",
+    "raw_order_reviews"
+   ],
+   "rows": 99224,
+   "columns": [
+    "review_id",
+    "order_id",
+    "review_score"
+   ],
+   "aggregates": [
+    {
+     "name": "distinct order_id",
+     "sql": "count(distinct order_id)",
+     "expected": 98673
+    }
+   ]
+  },
+  "category_translation": {
+   "candidates": [
+    "product_category_name_translation",
+    "category_translation",
+    "raw_category_translation"
+   ],
+   "rows": 71,
+   "columns": [
+    "product_category_name",
+    "product_category_name_english"
+   ],
+   "aggregates": []
+  }
+ },
+ "optional": {
+  "geolocation": {
+   "candidates": [
+    "olist_geolocation_dataset",
+    "geolocation",
+    "raw_geolocation"
+   ],
+   "rows": 1000163
+  }
+ }
+}

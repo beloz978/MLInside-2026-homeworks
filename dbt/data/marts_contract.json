@@ -1,0 +1,15 @@
+{
+  "_comment": "Обязательные колонки витрин. Имена колонок фиксированы, чтобы автопроверка могла сверить цифры с data/control_figures.json. Зерно и метрики — в hw-dbt-olist.md.",
+  "mart_daily_state_metrics": {"grain": "order_date × customer_state",
+    "columns": ["order_date", "customer_state", "orders_cnt", "gmv", "avg_order_value", "p95_order_value", "large_orders_share"]},
+  "mart_delivery_by_state": {"grain": "customer_state (только доставленные с известной датой)",
+    "columns": ["customer_state", "delivered_orders", "late_orders", "late_rate_pct", "avg_delivery_days", "unique_customers", "unique_sellers"]},
+  "mart_category_performance": {"grain": "product_category",
+    "columns": ["product_category", "orders_cnt", "revenue", "avg_price", "avg_review_score", "late_rate_pct"]},
+  "mart_customer_profile": {"grain": "customer_unique_id",
+    "columns": ["customer_unique_id", "orders_cnt", "total_spent", "avg_order_value", "recency_days", "segment"]},
+  "mart_hourly_order_pattern": {"grain": "day_of_week (ISO, 1=пн) × hour_of_day (0–23)",
+    "columns": ["day_of_week", "hour_of_day", "orders_cnt"]},
+  "mart_seller_analytics": {"grain": "seller_id",
+    "columns": ["seller_id", "orders_cnt", "revenue", "avg_review_score", "late_rate_pct", "is_problem_seller"]}
+}
