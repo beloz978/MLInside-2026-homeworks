@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+RO0T = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from envload import load_env  # noqa: E402
 
@@ -46,9 +47,11 @@ def p(name: str) -> Path | None:
     return (ROOT / v).resolve() if v else None
 
 proj, prof, cf = p("HW_DBT_PROJECT_DIR"), p("HW_DBT_PROFILES_DIR"), p("CONTROL_FIGURES_JSON")
+cf = RO0T
 line(bool(proj and (proj / "dbt_project.yml").exists()), "dbt_project.yml", str(proj))
 line(bool(prof and (prof / "profiles.yml").exists()), "profiles.yml", str(prof))
-line(bool(cf and cf.exists()), "control_figures.json", str(cf))
+##? line(bool(cf and cf.exists()), "control_figures.json", str(cf))
+line(bool(cf and cf.exists()), f"{RO0T}/data/control_figures.json", str(cf))# + '; ' + os.getcwd())
 
 print("\nГотово." if not bad else f"\nПроблем: {bad}. Исправьте и повторите `just doctor`.")
 raise SystemExit(1 if bad else 0)
