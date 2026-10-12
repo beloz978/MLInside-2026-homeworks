@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from envload import ROOT, parse_env  # noqa: E402
+from envload import ENV_DIR, ROOT, parse_env  # noqa: E402
 
 DEFAULTS = {"postgres": {"host": "localhost", "port": "5432", "user": "postgres", "db": "olist"},
             "clickhouse": {"host": "localhost", "port": "8123", "user": "default", "db": "olist"}}
@@ -193,7 +193,7 @@ def step_db(ni: bool, kind_arg: str | None, args: argparse.Namespace) -> tuple[d
     plain["HW_SECOND_TARGET"] = ask("Имя output в profiles.yml для этого таргета", kind, ni=ni)
     plain["HW_DBT_TARGETS"] = f"duckdb,{plain['HW_SECOND_TARGET']}"
     print(f"   🆗 нужен драйвер: pip install {'dbt-postgres psycopg2-binary' if kind == 'postgres' else 'dbt-clickhouse clickhouse-connect'}"
-          "   (раскомментируйте в requirements.txt и выполните `just setup`)")
+          "   (раскомментируйте в config/requirements.txt и выполните `make setup`)")
     return plain, secret
 
 
@@ -212,7 +212,7 @@ def main() -> int:
         print("❌ мастер интерактивный: запустите его в терминале (или добавьте --non-interactive)")
         return 2
 
-    print("🧙 Мастер настройки самопроверки MLInside\n   Файлы: .env (несекретное) и .env.local (секреты). Ctrl+C — выход без записи.")
+    print("🧙 Мастер настройки самопроверки MLInside\n   Файлы config/.env (несекретное) и config/.env.local (секреты). Ctrl+C — выход без записи.")
     plain: dict[str, str] = {}
     secrets: dict[str, str] = {}
     try:
@@ -240,10 +240,10 @@ def main() -> int:
     if not ni and not yesno("Записать?", True):
         print("⏹️  Отменено.")
         return 1
-    update_env_file(ROOT / ".env", plain, "# Создано мастером scripts/wizard.py. Секреты — в .env.local.")
+    update_env_file(ENV_DIR / ".env", plain, "# Создано мастером scripts/wizard.py. Секреты — в .env.local.")
     if secrets:
-        update_env_file(ROOT / ".env.local", secrets, "# Секреты. Не коммитить (.gitignore).")
-    print("✅ Готово: .env" + (" и .env.local" if secrets else "") + " обновлены (прежние версии — *.bak)")
+        update_env_file(ENV_DIR / ".env.local", secrets, "# Секреты. Не коммитить (.gitignore).")
+    print("✅ Готово: config/.env" + (" и config/.env.local" if secrets else "") + " обновлены (прежние версии — *.bak)")
 
     if not ni and plain.get("HW_SECOND_TARGET") and yesno("Проверить подключение к СУБД сейчас?", True):
         env = {**os.environ, **{k: v for k, v in {**plain, **secrets}.items()}}

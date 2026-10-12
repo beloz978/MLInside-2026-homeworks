@@ -13,7 +13,7 @@ help: ## Список команд
 setup: ## 1. Создать .venv и поставить зависимости (нужен uv)
 	##`[[ ! -d .venv ]] && uv venv .venv
 	uv venv .venv || echo "`.venv` already exists."
-	uv pip install --python $(PY) -r requirements.txt
+	uv pip install --python $(PY) -r config/requirements.txt
 
 wizard: ## 2. Мастер настройки: GitHub, путь к проекту, Postgres/ClickHouse -> .env
 	$(PY) scripts/wizard.py
