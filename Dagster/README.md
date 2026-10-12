@@ -6,7 +6,7 @@
 входные данные → raw → dbt (staging → marts) → (на 10) модель
 ```
 
-Здесь только текст задания: готовых скриптов и автопроверки для Dagster в этом репозитории нет. Данные и эталонные цифры — те же, что в ДЗ по dbt (`kagglehub.dataset_download("olistbr/brazilian-ecommerce")`; ожидаемые числа строк — в [ДЗ по dbt](../dbt/ДЗ/ДЗ_dbt_Olist.md), раздел 0).
+Здесь только текст задания (скрипты: [scripts/README.md](scripts/README.md)). Данные и эталонные цифры — те же, что в ДЗ по dbt (`kagglehub.dataset_download("olistbr/brazilian-ecommerce")`; ожидаемые числа строк — в [ДЗ по dbt](../dbt/ДЗ/ДЗ_dbt_Olist.md), раздел 0).
 
 ## Что нужно сделать
 
