@@ -42,7 +42,7 @@
 - match: "^проверка GitHub отключена"
   hint: "Запустите проверку без флага --no-gh."
 - match: "^GitHub API доступен"
-  hint: "404 — репозиторий не найден или приватный, а токена нет: `gh auth login` или GH_TOKEN в config/.env.local; проверьте HW_GH_REPO (owner/name) в config/.env."
+  hint: "404 — репозиторий не найден или приватный, а токен не того аккаунта: нужен аккаунт-владелец репозитория (для dataengy/* — dataengy). Войдите им (`gh auth login`) или задайте его GH_TOKEN в config/.env.local; проверьте HW_GH_REPO (owner/name) в config/.env."
   url: https://cli.github.com/manual/gh_auth_login
 - match: "^PR найден"
   hint: "Создайте Pull Request с вашей веткой или задайте номер в HW_GH_PR (config/.env)."

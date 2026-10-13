@@ -1,6 +1,6 @@
 """Проверка PR через GitHub REST API (без ручных проверок).
 
-Токен: GH_TOKEN / GITHUB_TOKEN из окружения (.env.local) или `gh auth token`.
+Токен: GH_TOKEN / GITHUB_TOKEN из окружения (.env.local) или `gh auth token --user <владелец репо>` (затем активный аккаунт gh).
 Репозиторий: HW_GH_REPO=owner/name, иначе — из `git remote origin` каталога проекта.
 PR: HW_GH_PR=номер, иначе — PR текущей ветки, иначе — последний PR автора токена.
 """
@@ -20,17 +20,19 @@ from settings import section
 S = section("gh_api")
 
 
-def get_token() -> str | None:
+def get_token(owner: str | None = None) -> str | None:
+    """Токен из окружения; иначе из gh — сначала аккаунта владельца репозитория (приватный репо чужого аккаунта даёт 404), затем активного."""
     for k in ("GH_TOKEN", "GITHUB_TOKEN"):
         if os.environ.get(k):
             return os.environ[k]
     if shutil.which("gh"):
-        try:
-            r = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True, timeout=S["cmd_timeout_s"])
-            if r.returncode == 0 and r.stdout.strip():
-                return r.stdout.strip()
-        except Exception:  # noqa: BLE001
-            pass
+        for extra in ([["--user", owner]] if owner else []) + [[]]:
+            try:
+                r = subprocess.run(["gh", "auth", "token", *extra], capture_output=True, text=True, timeout=S["cmd_timeout_s"])
+                if r.returncode == 0 and r.stdout.strip():
+                    return r.stdout.strip()
+            except Exception:  # noqa: BLE001
+                pass
     return None
 
 
@@ -110,10 +112,10 @@ def ci_state(repo: str, sha: str, token: str | None) -> tuple[str, str]:
 
 def pr_report(project_dir: Path) -> dict:
     """Единый отчёт для чекера. Ключи: error | repo, pr{...}, ci(state, msg)."""
-    token = get_token()
     repo = detect_repo(project_dir)
     if not repo:
         return {"error": "репозиторий не определён: задайте HW_GH_REPO=owner/name (или git remote origin)"}
+    token = get_token(repo.split("/")[0])
     if not token:
         return {"error": "нет токена GitHub: запустите `just wizard` (или gh auth login)", "repo": repo}
     try:
