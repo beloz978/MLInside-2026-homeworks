@@ -11,7 +11,7 @@ check_hw:
   tolerance: {rel: 0.005, abs: 0.5}
   default_min_points: 1          # --min: балл, с которого код возврата 0
   search_parents: 2              # файлы уровня репозитория ищем в каталоге проекта и стольких родителях
-  data_files: {raw_expectations: raw_expectations.json, marts_contract: marts_contract.json}   # в dbt/data/
+  data_files: {raw_expectations: raw_expectations.json, marts_contract: marts_contract.json, hints: hints.yaml}   # в dbt/data/
   thresholds:
     marts_basic: 2               # критерий 5
     marts_extended: 4            # критерий 8
@@ -53,6 +53,7 @@ check_db_from_profile:
   timeout_s: 5.0
 
 wizard:
+  duckdb_path: data/olist.duckdb   # пишется в config/.env как OLIST_DUCKDB_PATH
   db_defaults:
     postgres: {host: localhost, port: "5432", user: postgres, db: olist}
     clickhouse: {host: localhost, port: "8123", user: default, db: olist}

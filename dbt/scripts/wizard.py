@@ -174,7 +174,7 @@ def step_db(ni: bool, kind_arg: str | None, args: argparse.Namespace) -> tuple[d
     print("\n🗄️  Шаг 3/3 — второй таргет для 10 баллов (DuckDB есть всегда)")
     kind = kind_arg or choose("Что используете как второй таргет?", [
         ("none", "ничего (только DuckDB)"), ("postgres", "Postgres"), ("clickhouse", "ClickHouse")], ni=ni)
-    plain: dict[str, str] = {"HW_DBT_TARGETS": "duckdb"}
+    plain: dict[str, str] = {"HW_DBT_TARGETS": "duckdb", "OLIST_DUCKDB_PATH": S["duckdb_path"]}
     secret: dict[str, str] = {}
     if kind == "none":
         plain["HW_SECOND_TARGET"] = ""

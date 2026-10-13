@@ -4,8 +4,6 @@
 .env.*.bak
 *.bak
 .venv/
-.tmp/*
-!.tmp/.gitkeep
 *.duckdb
 *.duckdb.wal
 __pycache__/

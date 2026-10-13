@@ -49,4 +49,4 @@
 
 ## `gh_api.py`
 
-Вспомогательный модуль: данные Pull request и статус GitHub Actions через REST API. Токен берётся из `GH_TOKEN` / `GITHUB_TOKEN` (в том числе из `.env.local`) или из `gh auth token`.
+Вспомогательный модуль: данные Pull request и статус GitHub Actions через REST API. Токен берётся из `GH_TOKEN` / `GITHUB_TOKEN` (в том числе из `.env.local`) или из `gh auth token --user <владелец репозитория>`, затем из активного аккаунта gh. Для репозиториев `dataengy/*` нужен аккаунт `dataengy`: на приватном репозитории чужой аккаунт получает 404 «Not Found», а не 403.

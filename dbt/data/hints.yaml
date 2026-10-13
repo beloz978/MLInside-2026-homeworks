@@ -1,0 +1,105 @@
+# Подсказки к непройденным подпроверкам отчёта `make check` (scripts/check_hw.py).
+# match — регэксп по тексту подпроверки (первое совпадение выигрывает, поэтому общие — внизу),
+# hint — что делать, url — ссылка (необязательно). Порядок записей важен.
+- match: "^dbt deps"
+  hint: "Проверьте packages.yml и интернет, затем запустите `dbt deps` вручную."
+  url: https://docs.getdbt.com/docs/build/packages
+- match: "^dbt seed"
+  hint: "Смотрите ошибки моделей выше в выводе dbt. Частая причина: source() указывает не на ту схему/таблицу, куда `dbt seed` положил данные (seed → схема target, имя = имя CSV; задайте `schema:` и `identifier:` в sources.yml)."
+  url: https://docs.getdbt.com/reference/source-properties
+- match: "^исходные данные загружены"
+  hint: "Скачайте CSV (`make seeds`) и выполните `dbt seed --full-refresh` в проекте; ожидаемое число строк — в ДЗ/ДЗ_dbt_Olist.md, раздел 0."
+  url: https://docs.getdbt.com/docs/build/seeds
+- match: "^dbt docs generate"
+  hint: "Docs не строятся, пока не проходит parse/compile: исправьте ошибки сборки."
+  url: https://docs.getdbt.com/reference/commands/cmd-docs
+- match: "^catalog.json"
+  hint: "catalog.json создаёт `dbt docs generate`."
+  url: https://docs.getdbt.com/reference/commands/cmd-docs
+- match: "^у всех моделей есть description"
+  hint: "Добавьте `description:` каждой модели в schema.yml."
+  url: https://docs.getdbt.com/reference/resource-properties/description
+- match: "^у всех моделей описаны"
+  hint: "Опишите (`description:`) ключевые колонки каждой модели в schema.yml."
+  url: https://docs.getdbt.com/reference/resource-properties/columns
+- match: "^тест (not_null|unique|accepted_values|relationships)"
+  hint: "Добавьте этот базовый тест в `data_tests:` колонки в schema.yml."
+  url: https://docs.getdbt.com/docs/build/data-tests
+- match: "^на каждой витрине есть тест уникальности"
+  hint: "Для составного ключа витрины используйте `dbt_utils.unique_combination_of_columns`, для одиночного — `unique`."
+  url: https://github.com/dbt-labs/dbt-utils#unique_combination_of_columns-source
+- match: "витрин"
+  hint: "Сверьте колонки с data/marts_contract.json и цифры с эталоном; витрина должна быть собрана `dbt build` в DuckDB (если витрин нет в БД — сначала почините сборку, критерий 1)."
+- match: "^свой макрос"
+  hint: "Создайте макрос в macros/ и вызовите его из staging- или mart-модели."
+  url: https://docs.getdbt.com/docs/build/jinja-macros
+- match: "^пакет dbt_utils"
+  hint: "Объявите пакет в packages.yml, выполните `dbt deps` и вызовите его макрос/тест."
+  url: https://hub.getdbt.com/dbt-labs/dbt_utils/latest/
+- match: "^пакет dbt_date"
+  hint: "Используйте `godatadriven/dbt_date` (`calogica/dbt_date` устарел), выполните `dbt deps` и вызовите его макрос."
+  url: https://hub.getdbt.com/godatadriven/dbt_date/latest/
+- match: "^проверка GitHub отключена"
+  hint: "Запустите проверку без флага --no-gh."
+- match: "^GitHub API доступен"
+  hint: "404 — репозиторий не найден или приватный, а токен не того аккаунта: нужен аккаунт-владелец репозитория (для dataengy/* — dataengy). Войдите им (`gh auth login`) или задайте его GH_TOKEN в config/.env.local; проверьте HW_GH_REPO (owner/name) в config/.env."
+  url: https://cli.github.com/manual/gh_auth_login
+- match: "^PR найден"
+  hint: "Создайте Pull Request с вашей веткой или задайте номер в HW_GH_PR (config/.env)."
+  url: https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request
+- match: "^у PR есть заголовок"
+  hint: "Задайте PR осмысленный заголовок (≥ 5 символов)."
+- match: "^описание PR"
+  hint: "Опишите в PR, что сделано (≥ 30 знаков), версии dbt-core/адаптера и приложите скриншот DAG."
+- match: "^в описании не видно версий"
+  hint: "Добавьте в описание PR версии, например: dbt-core 1.12.5, dbt-duckdb 1.11.0."
+- match: "^в описании нет скриншота"
+  hint: "Приложите в PR скриншот DAG из `dbt docs serve`."
+  url: https://docs.getdbt.com/reference/commands/cmd-docs
+- match: "singular"
+  hint: "Singular-тест — SQL-файл в tests/, возвращающий строки-нарушения."
+  url: https://docs.getdbt.com/docs/build/data-tests#singular-data-tests
+- match: "unit-тест"
+  hint: "Опишите `unit_tests:` в yml модели (dbt ≥ 1.8) с given/expect."
+  url: https://docs.getdbt.com/docs/build/unit-tests
+- match: "QA-пакета"
+  hint: "Добавьте в packages.yml ≥ 2 пакета из списка и выполните `dbt deps`; если пакет не поддерживает адаптер — возьмите другой и напишите об этом в PR."
+  url: https://hub.getdbt.com/
+- match: "^pre-commit: sqlfluff"
+  hint: "Добавьте хук sqlfluff-lint в .pre-commit-config.yaml."
+  url: https://docs.sqlfluff.com/en/stable/production/pre_commit.html
+- match: "^pre-commit: dbt parse"
+  hint: "Добавьте local-хук с `dbt parse`."
+  url: https://pre-commit.com/#repository-local-hooks
+- match: "^pre-commit: хук проверки"
+  hint: "Добавьте хук dbt-checkpoint, dbt-score, dbt-bouncer или dbt-coverage."
+  url: https://github.com/dbt-checkpoint/dbt-checkpoint
+- match: "^.pre-commit-config.yaml"
+  hint: "Создайте .pre-commit-config.yaml (sqlfluff, dbt parse, хук проверки проекта) и выполните `pre-commit install`."
+  url: https://pre-commit.com/
+- match: "^Makefile/justfile"
+  hint: "Добавьте Makefile или justfile с целями (deps, seed, build, test, docs)."
+  url: https://just.systems/man/en/
+- match: "^dbt_project_evaluator"
+  hint: "Добавьте dbt-labs/dbt_project_evaluator в packages.yml и выполните `dbt deps`."
+  url: https://dbt-labs.github.io/dbt-project-evaluator/latest/
+- match: "^incremental-модель"
+  hint: "Сделайте одну модель `materialized='incremental'` с `is_incremental()` или добавьте snapshot (SCD2)."
+  url: https://docs.getdbt.com/docs/build/incremental-models
+- match: "^макрос портабельности"
+  hint: "Напишите макрос с `adapter.dispatch(...)` и реализациями под duckdb/postgres/clickhouse."
+  url: https://docs.getdbt.com/reference/dbt-jinja-functions/dispatch
+- match: "^GitHub Actions"
+  hint: "Добавьте .github/workflows/*.yml, запускающий dbt (deps, seed, build)."
+  url: https://docs.github.com/en/actions
+- match: "^CI на коммите"
+  hint: "Нужен PR и успешный прогон Actions на его последнем коммите."
+  url: https://docs.github.com/en/actions
+- match: "^второй таргет"
+  hint: "Опишите в profiles.yml output типа postgres или clickhouse и укажите его в HW_SECOND_TARGET (config/.env)."
+  url: https://docs.getdbt.com/docs/core/connect-data-platform/postgres-setup
+- match: "^СУБД второго таргета"
+  hint: "Поднимите СУБД и задайте пароль в config/.env.local; проверка: `make ready`."
+- match: "^dbt build --target"
+  hint: "Исправьте ошибки сборки на втором таргете (диалект SQL — через макросы портабельности)."
+  url: https://docs.getdbt.com/reference/dbt-jinja-functions/dispatch
