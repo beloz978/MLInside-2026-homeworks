@@ -1,6 +1,6 @@
 # Скрипты самопроверки ДЗ по dbt
 
-Запускаются через [`Makefile`](../Makefile) из каталога `dbt/` (`make help` — список команд); напрямую: `.venv/bin/python scripts/<имя>.py`. Все пути и настройки берутся из `.env` / `.env.local` ([шаблоны](../.env.example)) — абсолютных путей в коде нет.
+Запускаются через [`Makefile`](../Makefile) из каталога `dbt/` (`make help` — список команд); напрямую: `.venv/bin/python scripts/<имя>.py`. Личные пути и настройки берутся из `config/.env` / `config/.env.local` ([шаблоны](../config/.env.example)) — абсолютных путей в коде нет; общие константы (пороги, допуски, URL) — в [`settings.yml`](settings.yml).
 
 | Шаг `make` | Скрипт |
 |---|---|
@@ -8,7 +8,7 @@
 | `make seeds` | [`fetch_olist_seeds.py`](fetch_olist_seeds.py) |
 | `make ready` | [`doctor.py`](doctor.py), затем [`check_db_from_profile.py`](check_db_from_profile.py) |
 | `make check` | [`check_hw.py`](check_hw.py) |
-| — (используют остальные) | [`envload.py`](envload.py), [`gh_api.py`](gh_api.py) |
+| — (используют остальные) | [`envload.py`](envload.py), [`settings.py`](settings.py), [`gh_api.py`](gh_api.py) |
 
 ## `check_hw.py` — главная проверка
 
@@ -23,7 +23,7 @@
 
 ## `wizard.py` — интерактивная настройка
 
-Спрашивает по шагам: вход в GitHub (через браузер `gh auth login` или вставка токена — ввод скрыт; нужны права на чтение Pull requests и Actions), репозиторий и номер PR; путь к dbt-проекту и `profiles.yml`; второй таргет — нет / Postgres / ClickHouse, хост, порт, пользователь, база, пароль. Несекретное пишет в `.env`, токен и пароли — в `.env.local` (права 600); прежние файлы сохраняются как `*.bak`. Пароли и токен не печатаются.
+Спрашивает по шагам: вход в GitHub (через браузер `gh auth login` или вставка токена — ввод скрыт; нужны права на чтение Pull requests и Actions), репозиторий и номер PR; путь к dbt-проекту и `profiles.yml`; второй таргет — нет / Postgres / ClickHouse, хост, порт, пользователь, база, пароль. Несекретное пишет в `config/.env`, токен и пароли — в `config/.env.local` (права 600); прежние файлы сохраняются как `*.bak`. Пароли и токен не печатаются.
 
 Без вопросов (CI/тест): `python scripts/wizard.py --non-interactive --project PATH [--db postgres ...]`.
 
@@ -33,7 +33,7 @@
 
 ## `doctor.py`
 
-Проверка окружения: инструменты, Python-пакеты, переменные из `.env`, существование путей и файла с эталонными цифрами.
+Проверка окружения: инструменты, Python-пакеты, переменные из `config/.env`, существование путей и файла с эталонными цифрами.
 
 ## `check_db_from_profile.py`
 
@@ -41,7 +41,11 @@
 
 ## `envload.py`
 
-Мини-загрузчик `.env` и `.env.local` без внешних зависимостей. Приоритет: переменные окружения > `.env.local` > `.env`.
+Мини-загрузчик `config/.env` и `config/.env.local` без внешних зависимостей. Приоритет: переменные окружения > `.env.local` > `.env`.
+
+## `settings.yml` и `settings.py`
+
+Общие несекретные константы скриптов, по секции на скрипт: пороги и названия уровней в `check_hw`, список файлов Olist и id датасета Kaggle в `fetch_olist_seeds`, URL, таймауты и регулярки в `gh_api`, порты по умолчанию в `wizard`, списки инструментов, пакетов и переменных в `doctor`. Читаются строго через `settings.py`: нет секции или ключа — `ValueError` с именем ключа. Разделение: `settings.yml` — общее для всех, `config/.env` — личные пути и таргеты, `config/.env.local` — секреты.
 
 ## `gh_api.py`
 
