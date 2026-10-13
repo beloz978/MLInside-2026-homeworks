@@ -13,7 +13,7 @@
 Баллы независимы: проваленный критерий не отнимает баллы у остальных.
 Соответствие уровням ДЗ: 1–7 баллов — «6–7», 8–9 — «8–9», 10 — «10».
 
-Пути берутся из .env / .env.local (см. `just wizard`). Код возврата: 0 — набрано ≥ --min баллов
+Пути берутся из .env / .env.local (см. `make wizard`). Код возврата: 0 — набрано ≥ --min баллов
 (по умолчанию 1), 2 — ошибка запуска.
 
     python scripts/check_hw.py                 # полный прогон
@@ -336,7 +336,7 @@ def main() -> int:
     def pth(name: str, default: str | None = None) -> Path:
         v = os.environ.get(name) or default
         if not v:
-            sys.exit(f"не задана переменная {name} (запустите `just wizard`)")
+            sys.exit(f"не задана переменная {name} (запустите `make wizard`)")
         return resolve_path(v, ROOT).resolve()
 
     project = pth("HW_DBT_PROJECT_DIR")
@@ -345,7 +345,8 @@ def main() -> int:
     if not (project / "dbt_project.yml").exists():
         print(f"❌ нет dbt_project.yml в {project}", file=sys.stderr)
         return 2
-    cf = json.loads(pth("CONTROL_FIGURES_JSON", "data/control_figures.json").read_text(encoding="utf-8"))
+    # умолчание — то же, что мастер пишет в .env (settings.yml → wizard.control_figures_json)
+    cf = json.loads(pth("CONTROL_FIGURES_JSON", section("wizard")["control_figures_json"]).read_text(encoding="utf-8"))
     contract = json.loads((ROOT / "data" / S["data_files"]["marts_contract"]).read_text(encoding="utf-8"))
     ctx = Ctx(project, profiles, db, cf, contract)
 

@@ -20,7 +20,10 @@ import os
 import shutil
 import subprocess
 import sys
+import urllib.error
 from pathlib import Path
+
+import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from envload import ENV_DIR, ROOT, load_env, parse_env  # noqa: E402
@@ -28,6 +31,7 @@ from settings import section  # noqa: E402
 from utils import ask, choose, resolve_path, update_env_file, yesno  # noqa: E402
 
 S = section("wizard")
+EXISTING = parse_env(ENV_DIR / ".env")      # уже записанные значения: умолчания из settings.yml их не затирают
 
 
 # ------------------------------------------------------------------ шаги
@@ -39,7 +43,7 @@ def step_github(ni: bool, project: Path | None) -> dict[str, str]:
     if gh:
         r = subprocess.run([gh, "auth", "status"], capture_output=True, text=True)
         logged = r.returncode == 0
-        print("   ✅ gh найден, вход выполнен" if logged else "   ⚠️  gh найден, но вход не выполнен")
+        print("   ✅ GitHub CLI (gh) найден, вход выполнен" if logged else "   ⚠️  GitHub CLI (gh) найден, но вход не выполнен")
     else:
         print("   🆗 GitHub CLI (gh) не установлен — можно вставить токен вручную")
     if not logged and not ni:
@@ -70,7 +74,39 @@ def step_github(ni: bool, project: Path | None) -> dict[str, str]:
         out["HW_GH_REPO"] = repo
     pr = ask("Номер PR (пусто = взять PR текущей ветки / последний ваш)", os.environ.get("HW_GH_PR", ""), ni=ni)
     out["HW_GH_PR"] = pr
+    if repo and not ni:
+        verify_repo_pr(gh_api, repo, pr, token, project)
     return {**out, **{"__secret__" + k: v for k, v in secrets.items()}}
+
+
+def verify_repo_pr(gh_api, repo: str, pr: str, token: str | None, project: Path | None) -> None:
+    """Печатает, виден ли репозиторий и найден ли PR; ничего не прерывает (GitHub-шаг можно пропустить)."""
+    url = S["repo_url"].format(repo=repo)
+    print(f"   🔗 {url}")
+    try:
+        gh_api.api(f"/repos/{repo}", token)
+    except urllib.error.HTTPError as e:
+        print(f"   ❌ нет доступа к {url} (HTTP {e.code}): проверьте имя owner/name и права токена")
+        return
+    except Exception as e:  # noqa: BLE001
+        print(f"   ❌ GitHub недоступен: {type(e).__name__}")
+        return
+    old = os.environ.get("HW_GH_PR")
+    os.environ["HW_GH_PR"] = pr                      # find_pr читает номер из окружения
+    try:
+        found = gh_api.find_pr(repo, token, project or Path.cwd())
+    except ValueError:
+        print(f"   ❌ номер PR должен быть числом, получено «{pr}»")
+        return
+    except urllib.error.HTTPError as e:
+        print(f"   ❌ PR #{pr} не найден в {url} (HTTP {e.code})")
+        return
+    finally:
+        os.environ.pop("HW_GH_PR", None) if old is None else os.environ.__setitem__("HW_GH_PR", old)
+    if found:
+        print(f"   ✅ PR #{found['number']} «{found['title']}»: {found['html_url']}")
+    else:
+        print(f"   ⚠️  открытых и закрытых PR в {url} не найдено — создайте PR из ветки с ДЗ")
 
 
 def find_projects(start: Path) -> list[Path]:
@@ -83,11 +119,20 @@ def find_projects(start: Path) -> list[Path]:
     return found
 
 
-def rel(p: Path) -> str:
+def tilde(p: Path) -> str:
+    """Путь с ~ вместо домашнего каталога — для вывода."""
     try:
-        return os.path.relpath(p, ROOT)
-    except ValueError:                      # Windows: другой диск
+        return "~/" + p.relative_to(Path.home()).as_posix()
+    except ValueError:
         return str(p)
+
+
+def profile_names(profiles_dir: Path) -> list[str] | None:
+    f = profiles_dir / "profiles.yml"
+    if not f.exists():
+        return None
+    data = yaml.safe_load(f.read_text(encoding="utf-8")) or {}
+    return [k for k in data if k != "config"]       # config — служебная секция dbt, не профиль
 
 
 def step_project(ni: bool, project_arg: str | None) -> dict[str, str]:
@@ -97,22 +142,29 @@ def step_project(ni: bool, project_arg: str | None) -> dict[str, str]:
     if cands and not cur:
         print("   🔎 найдено рядом:")
         for c in cands[:5]:
-            print(f"      • {rel(c)}")
-        cur = rel(cands[0])
+            print(f"      • {tilde(c)}")
+        cur = str(cands[0].resolve())
     while True:
         v = ask("Каталог с dbt_project.yml", cur, ni=ni)
         p = resolve_path(v, ROOT)
         if (p / "dbt_project.yml").exists():
-            print(f"   ✅ найден {p / 'dbt_project.yml'}")
+            print(f"   ✅ найден {tilde(p / 'dbt_project.yml')}")
             break
-        print(f"   ❌ нет dbt_project.yml в {p}")
+        print(f"   ❌ нет dbt_project.yml в {tilde(p)} (введено «{v}»; относительные пути считаются от {tilde(ROOT)})")
         if ni:
             sys.exit(2)
     prof = p if (p / "profiles.yml").exists() else None
-    pv = ask("Каталог с profiles.yml", rel(prof or p), ni=ni)
+    pv = ask("Каталог с profiles.yml", str(prof or p), ni=ni)
     pp = resolve_path(pv, ROOT)
-    print("   ✅ profiles.yml на месте" if (pp / "profiles.yml").exists() else "   ⚠️  profiles.yml там не найден")
-    name = ask("Имя профиля в profiles.yml", os.environ.get("HW_DBT_PROFILE", "olist"), ni=ni)
+    print(f"   ✅ profiles.yml на месте: {tilde(pp)}" if (pp / "profiles.yml").exists() else f"   ⚠️  profiles.yml в {tilde(pp)} не найден")
+    name = ask("Имя профиля в profiles.yml", os.environ.get("HW_DBT_PROFILE") or EXISTING.get("HW_DBT_PROFILE") or S["profile"], ni=ni)
+    names = profile_names(pp)
+    if names is None:
+        print(f"   ⚠️  профиль «{name}» не проверен: нет profiles.yml")
+    elif name in names:
+        print(f"   ✅ профиль «{name}» найден в profiles.yml")
+    else:
+        print(f"   ❌ профиля «{name}» нет в profiles.yml (есть: {', '.join(names) or 'пусто'})")
     # абсолютные пути без раскрытия симлинков: остаётся тот путь, что указал пользователь
     return {"HW_DBT_PROJECT_DIR": os.path.abspath(p), "HW_DBT_PROFILES_DIR": os.path.abspath(pp), "HW_DBT_PROFILE": name}
 
@@ -121,7 +173,10 @@ def step_db(ni: bool, kind_arg: str | None, args: argparse.Namespace) -> tuple[d
     print("\n🗄️  Шаг 3/3 — второй таргет для 10 баллов (DuckDB есть всегда)")
     kind = kind_arg or choose("Что используете как второй таргет?", [
         ("none", "ничего (только DuckDB)"), ("postgres", "Postgres"), ("clickhouse", "ClickHouse")], ni=ni)
-    plain: dict[str, str] = {"HW_DBT_TARGETS": "duckdb", "OLIST_DUCKDB_PATH": S["duckdb_path"]}
+    plain: dict[str, str] = {
+        "HW_DBT_TARGETS": S["targets"],
+        "OLIST_DUCKDB_PATH": EXISTING.get("OLIST_DUCKDB_PATH") or S["duckdb_path"],
+        "CONTROL_FIGURES_JSON": EXISTING.get("CONTROL_FIGURES_JSON") or S["control_figures_json"]}
     secret: dict[str, str] = {}
     if kind == "none":
         plain["HW_SECOND_TARGET"] = ""
@@ -194,14 +249,15 @@ def main() -> int:
     update_env_file(ENV_DIR / ".env", plain, "# Создано мастером scripts/wizard.py. Секреты — в .env.local.")
     if secrets:
         update_env_file(ENV_DIR / ".env.local", secrets, "# Секреты. Не коммитить (.gitignore).")
-    print("✅ Готово: config/.env" + (" и config/.env.local" if secrets else "") + " обновлены (прежние версии — *.bak)")
+    print(f"✅ Готово: записан {tilde(ENV_DIR / '.env')}" + (f" и {tilde(ENV_DIR / '.env.local')}" if secrets else "")
+          + " (прежние версии — *.bak рядом)")
 
     if not ni and plain.get("HW_SECOND_TARGET") and yesno("Проверить подключение к СУБД сейчас?", True):
         env = {**os.environ, **{k: v for k, v in {**plain, **secrets}.items()}}
         subprocess.call([sys.executable, str(ROOT / "scripts" / "check_db_from_profile.py"),
                          "--profiles-dir", str((ROOT / plain["HW_DBT_PROFILES_DIR"]).resolve()),
                          "--profile", plain["HW_DBT_PROFILE"], "--targets", plain["HW_SECOND_TARGET"]], env=env)
-    print("➡️  Дальше: `just doctor`, затем `just check-hw`")
+    print("➡️  Дальше: `make seeds`, затем `make ready` и `make check`")
     return 0
 
 

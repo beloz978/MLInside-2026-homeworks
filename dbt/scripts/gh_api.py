@@ -117,7 +117,7 @@ def pr_report(project_dir: Path) -> dict:
         return {"error": "репозиторий не определён: задайте HW_GH_REPO=owner/name (или git remote origin)"}
     token = get_token(repo.split("/")[0])
     if not token:
-        return {"error": "нет токена GitHub: запустите `just wizard` (или gh auth login)", "repo": repo}
+        return {"error": "нет токена GitHub: запустите `make wizard` (или gh auth login)", "repo": repo}
     try:
         pr = find_pr(repo, token, project_dir)
     except urllib.error.HTTPError as e:
