@@ -36,8 +36,11 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from db import table_ref  # noqa: E402
 from envload import load_env  # noqa: E402
+from logger import EMO  # noqa: E402
 from settings import section  # noqa: E402
+from utils import close, read_json, resolve_path  # noqa: E402
 
 load_env()
 S = section("check_hw")
@@ -46,7 +49,6 @@ T = S["thresholds"]
 MARTS, QA_PACKAGES, ORDER_HOOKS = S["marts"], S["qa_packages"], S["order_hooks"]
 REL_TOL, ABS_TOL = S["tolerance"]["rel"], S["tolerance"]["abs"]
 HINTS = yaml.safe_load((ROOT / "data" / S["data_files"]["hints"]).read_text(encoding="utf-8"))
-EMO = {"ok": "✅", "fail": "❌", "warn": "⚠️ ", "info": "🆗"}
 
 
 @dataclass
@@ -139,10 +141,6 @@ def hint_for(text: str) -> dict | None:
     return next((h for h in HINTS if re.search(h["match"], text)), None)
 
 
-def read_json(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-
-
 def pipeline(ctx: Ctx, second_target: str | None) -> None:
     ctx.db.parent.mkdir(parents=True, exist_ok=True)
     ctx.deps_rc = run_dbt(ctx, ["deps"])
@@ -177,19 +175,6 @@ def check_second_target(ctx: Ctx, second_target: str) -> None:
 # ----------------------------------------------------------------------------------------------
 # Сверка витрин с эталоном
 # ----------------------------------------------------------------------------------------------
-def close(a, b, rel=REL_TOL, abs_=0.0) -> bool:
-    if a is None or b is None:
-        return False
-    return abs(float(a) - float(b)) <= max(abs_, rel * abs(float(b)))
-
-
-def table_ref(con, name: str) -> str | None:
-    r = con.execute("select table_schema from information_schema.tables where lower(table_name)=? "
-                    "and table_schema not in ('information_schema','raw') order by (table_schema='main') desc limit 1",
-                    [name]).fetchone()
-    return f'"{r[0]}"."{name}"' if r else None
-
-
 def mart_assertions(name: str, cf: dict, q) -> list[tuple[str, bool, str]]:
     """Возвращает [(описание, ok, детали)]. q(sql) -> первое значение."""
     g = cf["global"]
@@ -495,8 +480,7 @@ def main() -> int:
         v = os.environ.get(name) or default
         if not v:
             sys.exit(f"не задана переменная {name} (запустите `just wizard`)")
-        p = Path(v).expanduser()
-        return (p if p.is_absolute() else ROOT / p).resolve()
+        return resolve_path(v, ROOT).resolve()
 
     project = pth("HW_DBT_PROJECT_DIR")
     profiles = pth("HW_DBT_PROFILES_DIR", str(project))

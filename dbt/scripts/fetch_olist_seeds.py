@@ -20,10 +20,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from envload import ROOT, load_env  # noqa: E402
 from settings import section  # noqa: E402
+from utils import resolve_path  # noqa: E402
 
 load_env()
 S = section("fetch_olist_seeds")
-
 
 
 def main() -> int:
@@ -35,8 +35,7 @@ def main() -> int:
     if not a.project:
         print("❌ укажите --project или HW_DBT_PROJECT_DIR (`make wizard`)")
         return 2
-    proj = Path(a.project).expanduser()
-    proj = proj if proj.is_absolute() else (ROOT / proj)
+    proj = resolve_path(a.project, ROOT)
     if not (proj / "dbt_project.yml").exists():
         print(f"❌ нет dbt_project.yml в {proj}")
         return 2

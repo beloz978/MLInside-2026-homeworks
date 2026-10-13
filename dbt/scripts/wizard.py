@@ -15,7 +15,6 @@
 from __future__ import annotations
 
 import argparse
-import getpass
 import os
 import shutil
 import subprocess
@@ -25,61 +24,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from envload import ENV_DIR, ROOT, parse_env  # noqa: E402
 from settings import section  # noqa: E402
+from utils import ask, choose, resolve_path, update_env_file, yesno  # noqa: E402
 
 S = section("wizard")
-
-
-# ------------------------------------------------------------------ .env helpers
-def update_env_file(path: Path, values: dict[str, str], header: str = "") -> None:
-    """Меняет/добавляет ключи, сохраняя остальные строки и комментарии. Старый файл → .bak."""
-    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else ([header] if header else [])
-    if path.exists():
-        shutil.copy2(path, path.with_name(path.name + ".bak"))
-    seen: set[str] = set()
-    for i, ln in enumerate(lines):
-        s = ln.strip()
-        if s and not s.startswith("#") and "=" in s:
-            k = s.split("=", 1)[0].strip()
-            if k in values:
-                lines[i] = f"{k}={values[k]}"
-                seen.add(k)
-    for k, v in values.items():
-        if k not in seen:
-            lines.append(f"{k}={v}")
-    path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
-    if path.name == ".env.local" and os.name == "posix":
-        path.chmod(0o600)
-
-
-def ask(q: str, default: str = "", secret: bool = False, ni: bool = False) -> str:
-    if ni:
-        return default
-    suffix = f" [{'скрыто' if secret and default else default}]" if default else ""
-    try:
-        v = (getpass.getpass if secret else input)(f"❓ {q}{suffix}: ").strip()
-    except EOFError:
-        return default
-    return v or default
-
-
-def yesno(q: str, default: bool = True, ni: bool = False) -> bool:
-    if ni:
-        return default
-    v = ask(f"{q} ({'Д/н' if default else 'д/Н'})").lower()
-    return default if not v else v[0] in "yд1"
-
-
-def choose(q: str, options: list[tuple[str, str]], default: int = 0, ni: bool = False) -> str:
-    if ni:
-        return options[default][0]
-    print(f"❓ {q}")
-    for i, (_, label) in enumerate(options, 1):
-        print(f"   {i}) {label}")
-    v = ask("Номер", str(default + 1))
-    try:
-        return options[int(v) - 1][0]
-    except (ValueError, IndexError):
-        return options[default][0]
 
 
 # ------------------------------------------------------------------ шаги
@@ -153,8 +100,7 @@ def step_project(ni: bool, project_arg: str | None) -> dict[str, str]:
         cur = rel(cands[0])
     while True:
         v = ask("Каталог с dbt_project.yml", cur, ni=ni)
-        p = Path(v).expanduser()
-        p = p if p.is_absolute() else (ROOT / p)
+        p = resolve_path(v, ROOT)
         if (p / "dbt_project.yml").exists():
             print(f"   ✅ найден {p / 'dbt_project.yml'}")
             break
@@ -163,8 +109,7 @@ def step_project(ni: bool, project_arg: str | None) -> dict[str, str]:
             sys.exit(2)
     prof = p if (p / "profiles.yml").exists() else None
     pv = ask("Каталог с profiles.yml", rel(prof or p), ni=ni)
-    pp = Path(pv).expanduser()
-    pp = pp if pp.is_absolute() else (ROOT / pp)
+    pp = resolve_path(pv, ROOT)
     print("   ✅ profiles.yml на месте" if (pp / "profiles.yml").exists() else "   ⚠️  profiles.yml там не найден")
     name = ask("Имя профиля в profiles.yml", os.environ.get("HW_DBT_PROFILE", "olist"), ni=ni)
     return {"HW_DBT_PROJECT_DIR": rel(p), "HW_DBT_PROFILES_DIR": rel(pp), "HW_DBT_PROFILE": name}

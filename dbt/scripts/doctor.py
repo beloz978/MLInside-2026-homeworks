@@ -12,18 +12,13 @@ ROOT = Path(__file__).resolve().parent.parent
 RO0T = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from envload import load_env  # noqa: E402
+from logger import Checks  # noqa: E402
 from settings import section  # noqa: E402
 
 load_env()
 S = section("doctor")
-bad = 0
-
-
-def line(ok: bool | None, label: str, detail: str = "") -> None:
-    global bad
-    mark = {True: "OK  ", False: "FAIL", None: "skip"}[ok]
-    bad += ok is False
-    print(f"[{mark}] {label:<26} {detail}")
+checks = Checks()
+line = checks.line
 
 
 print("== Инструменты ==")
@@ -58,5 +53,5 @@ line(bool(prof and (prof / "profiles.yml").exists()), "profiles.yml", str(prof))
 ##? line(bool(cf and cf.exists()), "control_figures.json", str(cf))
 line(bool(cf and cf.exists()), f"{RO0T}/data/control_figures.json", str(cf))# + '; ' + os.getcwd())
 
-print("\nГотово." if not bad else f"\nПроблем: {bad}. Исправьте и повторите `just doctor`.")
-raise SystemExit(1 if bad else 0)
+print("\nГотово." if not checks.bad else f"\nПроблем: {checks.bad}. Исправьте и повторите `just doctor`.")
+raise SystemExit(1 if checks.bad else 0)
