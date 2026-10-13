@@ -19,12 +19,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from envload import ROOT, load_env  # noqa: E402
+from settings import section  # noqa: E402
 
 load_env()
+S = section("fetch_olist_seeds")
 
-FILES = ["olist_orders_dataset", "olist_order_items_dataset", "olist_customers_dataset", "olist_products_dataset",
-         "olist_sellers_dataset", "olist_order_payments_dataset", "olist_order_reviews_dataset",
-         "product_category_name_translation"]
 
 
 def main() -> int:
@@ -44,11 +43,12 @@ def main() -> int:
 
     import kagglehub
 
-    print("⬇️  kagglehub.dataset_download('olistbr/brazilian-ecommerce')…", flush=True)
-    src = Path(kagglehub.dataset_download("olistbr/brazilian-ecommerce"))
+    dataset = S["kaggle_dataset"]
+    print(f"⬇️  kagglehub.dataset_download('{dataset}')…", flush=True)
+    src = Path(kagglehub.dataset_download(dataset))
     dst = proj / "seeds"
     dst.mkdir(exist_ok=True)
-    for name in FILES + (["olist_geolocation_dataset"] if a.with_geolocation else []):
+    for name in S["files"] + ([S["geolocation_file"]] if a.with_geolocation else []):
         f, t = src / f"{name}.csv", dst / f"{name}.csv"
         if a.only_missing and t.exists():
             print(f"🆗 {t.name}: уже есть")

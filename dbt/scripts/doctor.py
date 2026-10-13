@@ -12,8 +12,10 @@ ROOT = Path(__file__).resolve().parent.parent
 RO0T = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from envload import load_env  # noqa: E402
+from settings import section  # noqa: E402
 
 load_env()
+S = section("doctor")
 bad = 0
 
 
@@ -25,19 +27,22 @@ def line(ok: bool | None, label: str, detail: str = "") -> None:
 
 
 print("== Инструменты ==")
-line(sys.version_info >= (3, 10), "python >= 3.10", sys.version.split()[0])
-for tool, required in (("make", True), ("uv", True), ("just", False), ("direnv", False), ("git", False)):
+pmin = tuple(S["python_min"])
+line(sys.version_info >= pmin, "python >= " + ".".join(map(str, pmin)), sys.version.split()[0])
+for t in S["tools"]:
+    tool, required = t["name"], t["required"]
     path = shutil.which(tool)
     line(True if path else (False if required else None), tool, path or ("не найден" + ("" if required else " (не обязателен)")))
 
 print("\n== Python-пакеты (venv) ==")
-for mod, pkg in (("duckdb", "duckdb"), ("kagglehub", "kagglehub"), ("yaml", "pyyaml"), ("dbt", "dbt-core")):
+for pk in S["python_packages"]:
+    mod, pkg = pk["module"], pk["package"]
     ok = importlib.util.find_spec(mod) is not None
     line(ok, pkg, "" if ok else "выполните: make setup")
 
 print("\n== Переменные .env ==")
-need = ["HW_DBT_PROJECT_DIR", "HW_DBT_PROFILES_DIR", "OLIST_DUCKDB_PATH"]
-for name in need + ["OLIST_CSV_DIR", "HW_DBT_PROFILE", "HW_DBT_TARGETS", "HW_DBT_TARGET", "CONTROL_FIGURES_JSON"]:
+need = S["env_required"]
+for name in need + S["env_optional"]:
     v = os.environ.get(name)
     line(bool(v) if name in need else None if not v else True, name, v or "(пусто)")
 

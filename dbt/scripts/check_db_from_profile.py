@@ -30,8 +30,10 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from envload import load_env  # noqa: E402
+from settings import section  # noqa: E402
 
 load_env()
+S = section("check_db_from_profile")
 
 ENV_RE = re.compile(r"""\{\{\s*env_var\(\s*['"]([^'"]+)['"]\s*(?:,\s*['"]([^'"]*)['"]\s*)?\)\s*(?:\|\s*(as_\w+)\s*)?\}\}""")
 
@@ -156,7 +158,7 @@ def main() -> int:
                     help="имя профиля (по умолчанию $HW_DBT_PROFILE или единственный в файле)")
     ap.add_argument("--targets", default=os.environ.get("HW_DBT_TARGETS") or None,
                     help="target через запятую (по умолчанию $HW_DBT_TARGETS или все)")
-    ap.add_argument("--timeout", type=float, default=5.0)
+    ap.add_argument("--timeout", type=float, default=S["timeout_s"])
     ap.add_argument("--json", action="store_true", help="машиночитаемый вывод")
     args = ap.parse_args()
 

@@ -24,9 +24,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from envload import ENV_DIR, ROOT, parse_env  # noqa: E402
+from settings import section  # noqa: E402
 
-DEFAULTS = {"postgres": {"host": "localhost", "port": "5432", "user": "postgres", "db": "olist"},
-            "clickhouse": {"host": "localhost", "port": "8123", "user": "default", "db": "olist"}}
+S = section("wizard")
 
 
 # ------------------------------------------------------------------ .env helpers
@@ -179,7 +179,7 @@ def step_db(ni: bool, kind_arg: str | None, args: argparse.Namespace) -> tuple[d
     if kind == "none":
         plain["HW_SECOND_TARGET"] = ""
         return plain, secret
-    d = DEFAULTS[kind]
+    d = S["db_defaults"][kind]
     pre = "PG" if kind == "postgres" else "CLICKHOUSE_"
     host = ask("Хост", args.db_host or d["host"], ni=ni)
     port = ask("Порт" + (" (8123 HTTP, 9000 native)" if kind == "clickhouse" else ""), args.db_port or d["port"], ni=ni)
@@ -192,7 +192,7 @@ def step_db(ni: bool, kind_arg: str | None, args: argparse.Namespace) -> tuple[d
     secret[f"{pre}PASSWORD"] = pw
     plain["HW_SECOND_TARGET"] = ask("Имя output в profiles.yml для этого таргета", kind, ni=ni)
     plain["HW_DBT_TARGETS"] = f"duckdb,{plain['HW_SECOND_TARGET']}"
-    print(f"   🆗 нужен драйвер: pip install {'dbt-postgres psycopg2-binary' if kind == 'postgres' else 'dbt-clickhouse clickhouse-connect'}"
+    print(f"   🆗 нужен драйвер: pip install {S['db_drivers'][kind]}"
           "   (раскомментируйте в config/requirements.txt и выполните `make setup`)")
     return plain, secret
 
