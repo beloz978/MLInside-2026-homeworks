@@ -45,6 +45,7 @@ T = S["thresholds"]
 
 MARTS, QA_PACKAGES, ORDER_HOOKS = S["marts"], S["qa_packages"], S["order_hooks"]
 REL_TOL, ABS_TOL = S["tolerance"]["rel"], S["tolerance"]["abs"]
+HINTS = yaml.safe_load((ROOT / "data" / S["data_files"]["hints"]).read_text(encoding="utf-8"))
 EMO = {"ok": "✅", "fail": "❌", "warn": "⚠️ ", "info": "🆗"}
 
 
@@ -123,13 +124,19 @@ class Ctx:
 # Запуск dbt
 # ----------------------------------------------------------------------------------------------
 def run_dbt(ctx: Ctx, args: list[str], target: str | None = None) -> int:
-    cmd = [sys.executable, "-m", "dbt.cli.main", *args, "--profiles-dir", str(ctx.profiles)]
+    # -c вместо -m dbt.cli.main: иначе runpy печатает RuntimeWarning («found in sys.modules»)
+    cmd = [sys.executable, "-c", "from dbt.cli.main import cli; cli()", *args, "--profiles-dir", str(ctx.profiles)]
     if target:
         cmd += ["--target", target]
-    print("\n$", " ".join(cmd[2:]), flush=True)
+    print("\n$ dbt", " ".join(cmd[3:]), flush=True)
     env = os.environ.copy()
     env["OLIST_DUCKDB_PATH"] = str(ctx.db)
     return subprocess.call(cmd, cwd=ctx.project, env=env, stdout=sys.stderr, stderr=sys.stderr)
+
+
+def hint_for(text: str) -> dict | None:
+    """Подсказка (hint + необязательный url) к подпроверке: первое совпадение регэкспа из data/hints.yaml."""
+    return next((h for h in HINTS if re.search(h["match"], text)), None)
 
 
 def read_json(path: Path) -> dict:
@@ -493,7 +500,7 @@ def main() -> int:
 
     project = pth("HW_DBT_PROJECT_DIR")
     profiles = pth("HW_DBT_PROFILES_DIR", str(project))
-    db = pth("OLIST_DUCKDB_PATH", ".tmp/olist.duckdb")
+    db = pth("OLIST_DUCKDB_PATH")
     if not (project / "dbt_project.yml").exists():
         print(f"❌ нет dbt_project.yml в {project}", file=sys.stderr)
         return 2
@@ -552,11 +559,18 @@ def main() -> int:
                 if s.detail and (s.status != "ok" or s.text.startswith(("≥", "PR найден"))):
                     for ln in s.detail.splitlines():
                         print(f"        {ln}")
+                h = hint_for(s.text) if s.status in ("fail", "warn") else None
+                if h:
+                    print(f"        💡 {h['hint']}")
+                    if h.get("url"):
+                        print(f"        🔗 {h['url']}")
         bar = "".join("🟩" if c.passed else "⬜" for c in criteria)
         print(f"\n{'=' * 8} 🏁 Итог {'=' * 8}\n{bar}\n🎯 Проект прошёл на {points} из 10 баллов — уровень «{level_name(points)}»")
         miss = [f"{c.n}. {c.title}" for c in criteria if not c.passed]
         if miss:
-            print("📌 Не хватает: " + "; ".join(miss))
+            print("📌 Не хватает:")
+            for m in miss:
+                print(f"   • {m}")
     return 0 if points >= a.min else 1
 
 
