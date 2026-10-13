@@ -5,7 +5,7 @@
 PY := $(if $(wildcard .venv/Scripts/python.exe),.venv/Scripts/python.exe,.venv/bin/python)
 
 .DEFAULT_GOAL := help
-.PHONY: help setup wizard seeds ready check
+.PHONY: help setup wizard seeds ready check test
 
 help: ## Список команд
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed -E 's/:.*## /\t/' | awk -F'\t' '{printf "  make %-8s %s\n", $$1, $$2}'
@@ -27,5 +27,8 @@ ready: ## 4. Проверка готовности: инструменты, пу
 
 check: ## 5. Финальная проверка: баллы за ДЗ (N из 10)
 	$(PY) scripts/check_hw.py
+
+test: ## Тесты скриптов (pytest)
+	$(PY) -m pytest tests -q
 
 run: setup wizard seeds ready check

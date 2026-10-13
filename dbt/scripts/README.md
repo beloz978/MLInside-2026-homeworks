@@ -9,6 +9,7 @@
 | `make ready` | [`doctor.py`](doctor.py), затем [`check_db_from_profile.py`](check_db_from_profile.py) |
 | `make check` | [`check_hw.py`](check_hw.py) |
 | — (используют остальные) | [`envload.py`](envload.py), [`settings.py`](settings.py), [`gh_api.py`](gh_api.py) |
+| — (общие модули) | [`db.py`](db.py) — проверки СУБД и разбор `env_var`; [`utils.py`](utils.py) — пути, JSON, запись `.env`, вопросы мастера; [`logger.py`](logger.py) — строки `[OK]/[FAIL]` |
 
 ## `check_hw.py` — главная проверка
 
