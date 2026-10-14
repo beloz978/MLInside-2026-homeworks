@@ -1,6 +1,7 @@
 """quizes/<name>.md → quizes/<name>.yaml (questions, options, correct, hint, explanation).
 
 Usage: python quizes/md2yaml.py quizes/test-4-dagster.md
+       python quizes/md2yaml.py quizes/test-3-dbt-review.md "## Переписанные вопросы"  # only that section
 """
 import re
 import sys
@@ -8,7 +9,10 @@ from pathlib import Path
 
 import yaml
 
-HEAD = re.compile(r"^(Вопрос|Резерв) (\d+) (\S+) (\S+)(?: · (\S+))?\s*$", re.M)
+# "Вопрос 4 🟨 применение · простой" or "**Вопрос 2 🟩 понимание.** Текст вопроса"
+HEAD = re.compile(
+    r"^(?:\*\*)?(Вопрос|Резерв) (\d+) (\S+) ([^\s.·*]+)\.?(?: · ([^\s.*]+))?\.?(?:\*\*)?[ \t]*(.*)$", re.M
+)
 OPTION = re.compile(r"^\* (?:[А-Г]\)|☑|☐)\s*(.*?)\s*$")
 ANSWERS = {"Вопрос": "Ответы:", "Резерв": "Ответы резерва:"}
 
@@ -18,10 +22,10 @@ def parse(md: str) -> list[dict]:
     questions = []
     for i, h in enumerate(heads):
         end = heads[i + 1].start() if i + 1 < len(heads) else len(md)
-        # body stops at the next "---" separator (answers line, reserve header)
-        body = md[h.end():end].split("\n---", 1)[0]
+        # body stops at the next "---" separator (answers line, reserve header) or "## " heading
+        body = re.split(r"\n---|\n## ", md[h.end():end], maxsplit=1)[0]
         lines = [l.strip() for l in body.strip().splitlines()]
-        text, options, hint, explanation = [], [], None, None
+        text, options, hint, explanation = [h.group(6)] if h.group(6) else [], [], None, None
         for l in lines:
             if (m := OPTION.match(l)) and m.group(1):
                 options.append({"text": m.group(1).replace("✅", "").strip(), "correct": "✅" in m.group(1)})
@@ -53,6 +57,10 @@ def answer_key(q: dict) -> str:
 
 
 def self_check(md: str, questions: list[dict]) -> None:
+    assert questions, "no questions parsed"
+    for q in questions:
+        assert len(q["options"]) >= 2 and q["explanation"], f"{q['id']}: options/Разбор missing"
+        assert any(o["correct"] for o in q["options"]), f"{q['id']}: no ✅"
     for word, prefix in ANSWERS.items():
         m = re.search(rf"^{prefix} (.*)$", md, re.M)
         if not m:
@@ -61,7 +69,6 @@ def self_check(md: str, questions: list[dict]) -> None:
         section = [q for q in questions if q["section"] == ("main" if word == "Вопрос" else "reserve")]
         assert len(section) == len(expected), f"{prefix} lists {len(expected)}, parsed {len(section)}"
         for q in section:
-            assert len(q["options"]) >= 2 and q["explanation"], f"{q['id']}: options/Разбор missing"
             got = answer_key(q)
             assert got == expected[q["id"][1:]], f"{q['id']}: ✅ gives {got}, {prefix} says {expected[q['id'][1:]]}"
 
@@ -69,10 +76,16 @@ def self_check(md: str, questions: list[dict]) -> None:
 def main() -> None:
     src = Path(sys.argv[1])
     md = src.read_text(encoding="utf-8")
+    title = md.splitlines()[0].lstrip("# ").strip()
+    if len(sys.argv) > 2:
+        heading = sys.argv[2]
+        start = md.find(f"\n{heading}\n")
+        if start < 0:
+            sys.exit(f"{src}: heading {heading!r} not found")
+        md = re.split(r"\n## ", md[start + len(heading) + 2:], maxsplit=1)[0]
     questions = parse(md)
     self_check(md, questions)
     out = src.with_suffix(".yaml")
-    title = md.splitlines()[0].strip()
     out.write_text(
         yaml.safe_dump({"title": title, "questions": questions}, allow_unicode=True, sort_keys=False, width=1000),
         encoding="utf-8",
