@@ -4,11 +4,20 @@ Usage: uv run --with questionary --with pyyaml python quizes/quiz.py quizes/test
 Only the main section is asked; reserve questions are skipped.
 """
 import sys
+from pathlib import Path
 
 import questionary
 import yaml
 
 ANSWER, HINT = "Ответить", "💡 Подсказка"
+SETTINGS = Path(__file__).with_name("settings.yml")
+
+
+def hint_difficulties() -> list[str]:
+    quiz = yaml.safe_load(SETTINGS.read_text(encoding="utf-8"))["quiz"]
+    if "hint_difficulties" not in quiz:
+        raise ValueError(f"{SETTINGS}: quiz.hint_difficulties not set")
+    return quiz["hint_difficulties"]
 
 
 def score(q: dict, picked: list[int]) -> tuple[int, int]:
@@ -19,9 +28,9 @@ def score(q: dict, picked: list[int]) -> tuple[int, int]:
     return int(picked == [next(iter(correct))]), 1
 
 
-def ask(q: dict, n: int, total: int) -> tuple[int, int]:
+def ask(q: dict, n: int, total: int, hinted: list[str]) -> tuple[int, int]:
     print(f"\nВопрос {n}/{total} · {q['level']}" + (f" · {q['difficulty']}" if q.get("difficulty") else ""))
-    if q.get("hint") and questionary.select(q["text"], choices=[ANSWER, HINT]).unsafe_ask() == HINT:
+    if q.get("hint") and q.get("difficulty") in hinted and questionary.select(q["text"], choices=[ANSWER, HINT]).unsafe_ask() == HINT:
         print(f"💡 {q['hint']}")
     choices = [questionary.Choice(o["text"], value=i) for i, o in enumerate(q["options"])]
     if q["multi"]:
@@ -42,10 +51,11 @@ def main() -> None:
     data = yaml.safe_load(open(sys.argv[1], encoding="utf-8"))
     questions = [q for q in data["questions"] if q.get("section", "main") == "main"]
     print(data.get("title", ""))
+    hinted = hint_difficulties()
     got = best = 0
     try:
         for n, q in enumerate(questions, 1):
-            g, b = ask(q, n, len(questions))
+            g, b = ask(q, n, len(questions), hinted)
             got, best = got + g, best + b
     except (KeyboardInterrupt, EOFError):
         print("\nПрервано.")

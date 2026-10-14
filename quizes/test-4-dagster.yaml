@@ -17,7 +17,7 @@ questions:
     correct: false
   - text: В Airflow 3 ассет — событие, по которому запускается DAG
     correct: true
-  hint: null
+  hint: Подумайте, что в каждом инструменте является узлом графа, а что — событием между графами.
   explanation: Dagster описывает не «работу, которую надо выполнить», а результат. Зависимости задаются между ассетами, поэтому lineage строится сам, а проверки и метаданные привязаны к ассету. В Airflow 3 `@asset` упрощает запись и позволяет запускать DAG по событию (asset-aware scheduling), но единица графа по-прежнему задача.
 - id: q2
   section: main
@@ -85,7 +85,7 @@ questions:
     correct: false
   - text: '`partition_key` в `RunRequest`'
     correct: false
-  hint: null
+  hint: Один механизм отвечает за «откуда продолжить», другой — за «не создавать уже созданное».
   explanation: '`run_key` (например, имя файла) — ключ идемпотентности: запуск с тем же `run_key` повторно не создаётся. Курсор нужен, чтобы не перебирать уже обработанное, но сам по себе дубль не запрещает; `minimum_interval_seconds` задаёт только частоту тиков, а `partition_key` говорит, какую партицию считать.'
 - id: q6
   section: main
@@ -102,7 +102,7 @@ questions:
     correct: false
   - text: Связи между ассетами строятся по `ref` и `source` из `manifest.json`
     correct: true
-  hint: null
+  hint: Кто на самом деле выполняет SQL и из какого артефакта dbt Dagster берёт структуру проекта?
   explanation: 'SQL по-прежнему выполняет dbt (через `DbtCliResource`, обычно `dbt build`), а Dagster читает `manifest.json`, строит из него ассеты и lineage и показывает результаты тестов как проверки. Если ключи dbt-источников не совпадают с ключами raw-ассетов, граф получит разрыв: ключи задают через `meta.dagster.asset_key` или `DagsterDbtTranslator`.'
 - id: q7
   section: main
@@ -119,7 +119,7 @@ questions:
     correct: false
   - text: Reload code location
     correct: false
-  hint: null
+  hint: Нужно запустить материализацию сразу для многих партиций, а не повторить один запуск.
   explanation: backfill запускает материализацию выбранных партиций, при этом каждая партиция считается идемпотентно, поэтому повторный пересчёт безопасен. Re-execute повторит только последний запуск, то есть одну партицию; wipe лишь стирает историю материализаций и ничего не пересчитывает; reload подхватывает новый код, но запусков не создаёт.
 - id: q8
   section: main
@@ -136,7 +136,7 @@ questions:
     correct: false
   - text: 'Блокирующий asset check на витрине: `row_count > 0`'
     correct: true
-  hint: null
+  hint: Нужна мера, которая не просто сообщает о проблеме, а не даёт выполниться зависимым ассетам.
   explanation: retry повторит запуск на тех же пустых данных. Обычная проверка с severity WARN пометит проблему, но обучение не остановит. Freshness check следит за тем, когда ассет обновлялся, а пустая витрина как раз обновилась вовремя. Asset check с `blocking=True` при провале не даёт выполниться зависимым ассетам в этом запуске, а с Declarative Automation то же даёт `all_deps_blocking_checks_passed`. Результат проверки (row_count) заодно остаётся в метаданных ассета.
 - id: q9
   section: main
@@ -153,7 +153,7 @@ questions:
     correct: true
   - text: Запустить `dbt test` в pytest-тесте для моделей этих ассетов
     correct: false
-  hint: null
+  hint: Ищите способ прогнать ассеты механизмом Dagster, но с подменёнными ресурсами и без внешних сервисов.
   explanation: '`materialize_to_memory` прогоняет цепочку настоящим механизмом Dagster, сам передаёт значения между ассетами и подставляет тестовые ресурсы. CLI-материализация и `dg dev` используют настоящие ресурсы и IO manager, то есть ту самую БД; `dbt test` проверяет данные моделей, а не ассеты Dagster. Отдельный ассет можно вызвать как обычную функцию. В CI дополнительно запускают `dg check defs`, чтобы убедиться, что определения загружаются.'
 - id: q10
   section: main
@@ -170,7 +170,7 @@ questions:
     correct: false
   - text: Указать `deps=[AssetKey("mart_order_features")]` и запускать по событию
     correct: true
-  hint: null
+  hint: Ассеты разных code location видят друг друга по ключу, но в один запуск не попадают.
   explanation: 'ассеты разных code location связываются по ключу без импорта кода, и в интерфейсе это одно ребро графа. Но один запуск не материализует ассеты из разных locations, поэтому связывать их нужно событием: automation-условием на `training_dataset`, сенсором или расписанием. Раздельные locations — это независимые пакеты и образы, при общем графе.'
 - id: r1
   section: reserve
@@ -187,7 +187,7 @@ questions:
     correct: false
   - text: Задать ассету обучения условие automation `eager`
     correct: true
-  hint: null
+  hint: Обучение должно зависеть от факта обновления данных, а не от времени.
   explanation: условие живёт на ассете и срабатывает по факту обновления upstream, а не по времени, поэтому в день опоздания загрузки обучение подождёт, а не пройдёт на вчерашних данных. Частое расписание всё равно привязано ко времени и будет переобучать модель без новых данных. Выполняет условия automation-сенсор внутри daemon, поэтому daemon нужен.
 - id: r2
   section: reserve
@@ -255,7 +255,7 @@ questions:
     correct: false
   - text: У ассета `raw_orders` другой `group_name`
     correct: false
-  hint: null
+  hint: dagster-dbt связывает ассеты не по именам таблиц, а по ключам ассетов.
   explanation: dagster-dbt строит связи по ключам ассетов; если ключ dbt-источника отличается от ключа raw-ассета, граф получает разрыв. Ключи выравнивают через `meta.dagster.asset_key` в описании source или через `DagsterDbtTranslator`. Daemon граф не строит, IO manager отвечает за данные, а группа влияет только на отображение.
 - id: r6
   section: reserve
@@ -289,7 +289,7 @@ questions:
     correct: true
   - text: Положить пароль в `tags` ресурса в `Definitions`
     correct: false
-  hint: null
+  hint: Значение должно читаться в момент запуска, а в интерфейсе показываться только имя переменной.
   explanation: '`EnvVar` читает значение в момент запуска, а в интерфейсе показывает только имя переменной. `os.getenv` читает значение при загрузке code location, и оно становится видно в интерфейсе; `run_config` и теги сохраняются вместе с запуском в открытом виде.'
 - id: r8
   section: reserve
@@ -306,7 +306,7 @@ questions:
     correct: false
   - text: '`DuckDBPandasIOManager(database="olist.duckdb")`'
     correct: true
-  hint: null
+  hint: Нужен IO manager, который сам пишет DataFrame в таблицу, а не просто даёт подключение.
   explanation: '`DuckDBPandasIOManager` сам записывает возвращённый DataFrame в таблицу и читает его для следующего ассета. `DuckDBResource` даёт только подключение, и SQL пришлось бы писать в ассете; `FilesystemIOManager` сохраняет pickle-файлы, а `mem_io_manager` держит значения в памяти одного запуска.'
 - id: r9
   section: reserve
@@ -323,7 +323,7 @@ questions:
     correct: false
   - text: '`AutomationCondition.eager() | AutomationCondition.all_deps_blocking_checks_passed()`'
     correct: false
-  hint: null
+  hint: 'Обратите внимание на оператор между условиями: должны выполняться оба сразу.'
   explanation: '`eager()` срабатывает на обновление зависимостей, а `&` с `all_deps_blocking_checks_passed()` добавляет требование, что блокирующие проверки upstream прошли. С `|` хватило бы одного из условий, и витрина пересчиталась бы и на плохих данных. `on_cron` привязан ко времени, а `missing()` верно только для ни разу не материализованного ассета.'
 - id: r10
   section: reserve
