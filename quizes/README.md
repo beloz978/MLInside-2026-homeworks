@@ -19,7 +19,8 @@
 
 ```bash
 uv run --with pyyaml python quizes/md2yaml.py quizes/test-4-dagster.md            # md → yaml с самопроверкой
-uv run --with pyyaml python quizes/md2yaml.py quizes/test-3-dbt-review.md "## Переписанные вопросы"
+uv run --with pyyaml python quizes/md2yaml.py quizes/test-3-dbt-review.md          # тест и резерв, ревью пропускается
+uv run --with pyyaml python quizes/md2yaml.py quizes/test-3-dbt-review.md "## Переписанные вопросы"  # только этот раздел
 uv run --with questionary --with pyyaml python quizes/quiz.py quizes/test-4-dagster.yaml
 ```
 
