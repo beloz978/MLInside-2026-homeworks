@@ -4,7 +4,7 @@
 
 | Каталог | Что там |
 |---|---|
-| [`dbt/`](dbt/README.md) | ДЗ по **dbt**: [инструкция](dbt/MANUAL.md), [текст задания](dbt/ДЗ/ДЗ_dbt_Olist.md) и **автопроверка** — `make check` ставит оценку «N из 10» |
+| [`dbt/`](dbt/README.md) | ДЗ по **dbt**:<ul><li>[инструкция](dbt/MANUAL.md)</li><li>[текст задания](dbt/ДЗ/ДЗ_dbt_Olist.md)</li><li>[**автопроверка**](dbt/Makefile#L28) — `make check` ставит оценку «N из 10»</li></ul> |
 | [`Dagster/`](Dagster/README.md) | ДЗ по **оркестрации в Dagster**: [текст задания](Dagster/ДЗ/ДЗ_Dagster_Olist.md). Берёт dbt-проект из первого ДЗ и оркестрирует его (на высшую оценку — до обученной модели). Автопроверки для Dagster здесь нет |
 
 Начните с [`dbt/README.md`](dbt/README.md): там быстрый старт, список файлов и заметки о секретах.
