@@ -16,6 +16,15 @@ HEAD = re.compile(
 )
 OPTION = re.compile(r"^\* (?:[А-Г]\)|☑|☐)\s*(.*?)\s*$")
 ANSWERS = {"Вопрос": "Ответы:", "Резерв": "Ответы резерва:"}
+SETTINGS = Path(__file__).with_name("settings.yml")
+
+
+def load_settings() -> dict:
+    quiz = yaml.safe_load(SETTINGS.read_text(encoding="utf-8"))["quiz"]
+    missing = [k for k in ("difficulties", "hint_difficulties") if k not in quiz]
+    if missing:
+        raise ValueError(f"{SETTINGS}: quiz.{', quiz.'.join(missing)} not set")
+    return quiz
 
 
 def parse(md: str) -> list[dict]:
@@ -57,11 +66,15 @@ def answer_key(q: dict) -> str:
     return "АБВГ"[next(i for i, o in enumerate(q["options"]) if o["correct"])]
 
 
-def self_check(md: str, questions: list[dict]) -> None:
+def self_check(md: str, questions: list[dict], settings: dict) -> None:
     assert questions, "no questions parsed"
     for q in questions:
         assert len(q["options"]) >= 2 and q["explanation"], f"{q['id']}: options/Разбор missing"
         assert any(o["correct"] for o in q["options"]), f"{q['id']}: no ✅"
+        d = q["difficulty"]
+        assert d is None or d in settings["difficulties"], f"{q['id']}: unknown difficulty {d!r}"
+        if d in settings["hint_difficulties"]:
+            assert q["hint"], f"{q['id']}: «{d}» needs a «Подсказка:» line (quizes/settings.yml)"
     for word, prefix in ANSWERS.items():
         m = re.search(rf'^(?:<a id="[^"]*"></a>)?{prefix} (.*)$', md, re.M)
         if not m:
@@ -88,7 +101,7 @@ def main() -> None:
         # the test itself ends where a "# " heading (e.g. the review) starts
         md = re.split(r"\n# ", md, maxsplit=1)[0]
     questions = parse(md)
-    self_check(md, questions)
+    self_check(md, questions, load_settings())
     out = src.with_suffix(".yaml")
     out.write_text(
         yaml.safe_dump({"title": title, "questions": questions}, allow_unicode=True, sort_keys=False, width=1000),
