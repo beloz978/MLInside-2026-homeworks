@@ -1,6 +1,7 @@
 """quizes/<name>.md → quizes/<name>.yaml (questions, options, correct, hint, explanation).
 
 Usage: python quizes/md2yaml.py quizes/test-4-dagster.md
+       python quizes/md2yaml.py quizes/test-3-dbt-review.md                            # test + reserve, review skipped
        python quizes/md2yaml.py quizes/test-3-dbt-review.md "## Переписанные вопросы"  # only that section
 """
 import re
@@ -62,7 +63,7 @@ def self_check(md: str, questions: list[dict]) -> None:
         assert len(q["options"]) >= 2 and q["explanation"], f"{q['id']}: options/Разбор missing"
         assert any(o["correct"] for o in q["options"]), f"{q['id']}: no ✅"
     for word, prefix in ANSWERS.items():
-        m = re.search(rf"^{prefix} (.*)$", md, re.M)
+        m = re.search(rf'^(?:<a id="[^"]*"></a>)?{prefix} (.*)$', md, re.M)
         if not m:
             continue
         expected = {a.strip(): b.strip() for a, b in (p.split("—") for p in m.group(1).split("·"))}
@@ -83,6 +84,9 @@ def main() -> None:
         if start < 0:
             sys.exit(f"{src}: heading {heading!r} not found")
         md = re.split(r"\n## ", md[start + len(heading) + 2:], maxsplit=1)[0]
+    else:
+        # the test itself ends where a "# " heading (e.g. the review) starts
+        md = re.split(r"\n# ", md, maxsplit=1)[0]
     questions = parse(md)
     self_check(md, questions)
     out = src.with_suffix(".yaml")
