@@ -36,16 +36,19 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from db import table_ref  # noqa: E402
 from envload import load_env  # noqa: E402
+from logger import EMO  # noqa: E402
+from settings import section  # noqa: E402
+from utils import close, read_json, resolve_path  # noqa: E402
 
 load_env()
+S = section("check_hw")
+T = S["thresholds"]
 
-MARTS = ["mart_daily_state_metrics", "mart_delivery_by_state", "mart_category_performance",
-         "mart_customer_profile", "mart_hourly_order_pattern", "mart_seller_analytics"]
-QA_PACKAGES = ["audit_helper", "dbt_expectations", "elementary", "dbt_meta_testing", "dbt_profiler"]
-ORDER_HOOKS = ["dbt-checkpoint", "dbt-score", "dbt-bouncer", "dbt-coverage"]
-REL_TOL, ABS_TOL = 0.005, 0.5
-EMO = {"ok": "✅", "fail": "❌", "warn": "⚠️ ", "info": "🆗"}
+MARTS, QA_PACKAGES, ORDER_HOOKS = S["marts"], S["qa_packages"], S["order_hooks"]
+REL_TOL, ABS_TOL = S["tolerance"]["rel"], S["tolerance"]["abs"]
+HINTS = yaml.safe_load((ROOT / "data" / S["data_files"]["hints"]).read_text(encoding="utf-8"))
 
 
 @dataclass
@@ -87,7 +90,7 @@ class Ctx:
     def search_dirs(self) -> list[Path]:
         """Где искать файлы уровня репозитория: каталог проекта и до 2 родителей."""
         p = self.project
-        return [p, p.parent, p.parent.parent]
+        return [p, *list(p.parents)[:S["search_parents"]]]
 
     def find_file(self, names: list[str]) -> Path | None:
         for d in self.search_dirs():
@@ -123,17 +126,19 @@ class Ctx:
 # Запуск dbt
 # ----------------------------------------------------------------------------------------------
 def run_dbt(ctx: Ctx, args: list[str], target: str | None = None) -> int:
-    cmd = [sys.executable, "-m", "dbt.cli.main", *args, "--profiles-dir", str(ctx.profiles)]
+    # -c вместо -m dbt.cli.main: иначе runpy печатает RuntimeWarning («found in sys.modules»)
+    cmd = [sys.executable, "-c", "from dbt.cli.main import cli; cli()", *args, "--profiles-dir", str(ctx.profiles)]
     if target:
         cmd += ["--target", target]
-    print("\n$", " ".join(cmd[2:]), flush=True)
+    print("\n$ dbt", " ".join(cmd[3:]), flush=True)
     env = os.environ.copy()
     env["OLIST_DUCKDB_PATH"] = str(ctx.db)
     return subprocess.call(cmd, cwd=ctx.project, env=env, stdout=sys.stderr, stderr=sys.stderr)
 
 
-def read_json(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+def hint_for(text: str) -> dict | None:
+    """Подсказка (hint + необязательный url) к подпроверке: первое совпадение регэкспа из data/hints.yaml."""
+    return next((h for h in HINTS if re.search(h["match"], text)), None)
 
 
 def pipeline(ctx: Ctx, second_target: str | None) -> None:
@@ -170,19 +175,6 @@ def check_second_target(ctx: Ctx, second_target: str) -> None:
 # ----------------------------------------------------------------------------------------------
 # Сверка витрин с эталоном
 # ----------------------------------------------------------------------------------------------
-def close(a, b, rel=REL_TOL, abs_=0.0) -> bool:
-    if a is None or b is None:
-        return False
-    return abs(float(a) - float(b)) <= max(abs_, rel * abs(float(b)))
-
-
-def table_ref(con, name: str) -> str | None:
-    r = con.execute("select table_schema from information_schema.tables where lower(table_name)=? "
-                    "and table_schema not in ('information_schema','raw') order by (table_schema='main') desc limit 1",
-                    [name]).fetchone()
-    return f'"{r[0]}"."{name}"' if r else None
-
-
 def mart_assertions(name: str, cf: dict, q) -> list[tuple[str, bool, str]]:
     """Возвращает [(описание, ok, детали)]. q(sql) -> первое значение."""
     g = cf["global"]
@@ -217,7 +209,7 @@ def mart_assertions(name: str, cf: dict, q) -> list[tuple[str, bool, str]]:
         eq("max(orders_cnt)", q("select max(orders_cnt) from {t}"), m["max_orders_per_customer"], 0)
         eq("max(recency_days)", q("select max(recency_days) from {t}"), m["recency_days_quantiles"]["max"], 0, 1)
         seg = {r[0] for r in q("select distinct segment from {t}", all_=True)}
-        res.append(("segment ⊂ {HIGH,MEDIUM,LOW}, >=2 значений", seg <= {"HIGH", "MEDIUM", "LOW"} and len(seg) >= 2, f"значения: {sorted(map(str, seg))}"))
+        res.append(("segment ⊂ {HIGH,MEDIUM,LOW}, >=2 значений", seg <= set(S["segment_values"]) and len(seg) >= T["min_segment_values"], f"значения: {sorted(map(str, seg))}"))
     elif name == "mart_hourly_order_pattern":
         m = cf[name]
         eq("sum(orders_cnt)", q("select sum(orders_cnt) from {t}"), g["orders_with_items"], 0)
@@ -284,7 +276,7 @@ def check_raw(ctx: Ctx) -> tuple[list[tuple[str, bool, str]], int, int]:
     Возвращает ([(таблица, ok, детали)], найдено_таблиц, всего_нужно)."""
     import duckdb
 
-    exp = json.loads((ROOT / "data" / "raw_expectations.json").read_text(encoding="utf-8"))
+    exp = json.loads((ROOT / "data" / S["data_files"]["raw_expectations"]).read_text(encoding="utf-8"))
     tol = exp["tolerance"]
     res: list[tuple[str, bool, str]] = []
     if not ctx.db.exists():
@@ -389,7 +381,7 @@ def evaluate(ctx: Ctx, gh: dict | None) -> list[Criterion]:
 
     # 5 — первые две витрины
     c = new("Две витрины сходятся с эталоном")
-    c.add(n_pass >= 2, "≥ 2 витрины: колонки по контракту и цифры в допуске", marts_detail(2))
+    c.add(n_pass >= T["marts_basic"], f"≥ {T['marts_basic']} витрины: колонки по контракту и цифры в допуске", marts_detail(T["marts_basic"]))
 
     # 6 — макрос и пакеты
     c = new("Свой макрос и пакеты")
@@ -410,8 +402,8 @@ def evaluate(ctx: Ctx, gh: dict | None) -> list[Criterion]:
     else:
         pr = gh["pr"]
         c.add(True, f"PR найден: #{pr['number']} ({pr['state']}{', merged' if pr['merged'] else ''})", pr["url"])
-        c.add(len(pr["title"].strip()) >= 5, "у PR есть заголовок", pr["title"][:80])
-        c.add(pr["body_len"] >= 30, "описание PR заполнено", f"{pr['body_len']} знаков осмысленного текста (нужно ≥ 30)")
+        c.add(len(pr["title"].strip()) >= T["pr_title_len"], "у PR есть заголовок", pr["title"][:80])
+        c.add(pr["body_len"] >= T["pr_body_len"], "описание PR заполнено", f"{pr['body_len']} знаков осмысленного текста (нужно ≥ {T['pr_body_len']})")
         if not pr["has_versions"]:
             c.note("warn", "в описании не видно версий dbt-core/адаптера", "желательно: dbt-core 1.x.y, dbt-duckdb 1.x.y")
         if not pr["has_image"]:
@@ -419,15 +411,15 @@ def evaluate(ctx: Ctx, gh: dict | None) -> list[Criterion]:
 
     # 8 — расширенная проверка качества
     c = new("Витрины и тесты 8–9: 4 витрины, singular, unit")
-    c.add(n_pass >= 4, "≥ 4 витрины сходятся с эталоном", marts_detail(4))
-    c.add(len(singular) >= 3, "≥ 3 singular-теста", f"найдено: {len(singular)}")
+    c.add(n_pass >= T["marts_extended"], f"≥ {T['marts_extended']} витрины сходятся с эталоном", marts_detail(T["marts_extended"]))
+    c.add(len(singular) >= T["singular_tests"], f"≥ {T['singular_tests']} singular-теста", f"найдено: {len(singular)}")
     ut = [u for u in m.get("unit_tests", {}).values() if u.get("package_name") == ctx.pname]
-    c.add(len(ut) >= 1, "≥ 1 unit-тест (dbt 1.8+)", f"найдено: {len(ut)}")
+    c.add(len(ut) >= T["unit_tests"], f"≥ {T['unit_tests']} unit-тест (dbt 1.8+)", f"найдено: {len(ut)}")
 
     # 9 — инженерная обвязка
     c = new("Инженерная обвязка 8–9: QA-пакеты, pre-commit, Makefile/justfile")
     qa = [p for p in QA_PACKAGES if any(p in d for d in declared) and p in installed]
-    c.add(len(qa) >= 2, f"≥ 2 QA-пакета из {QA_PACKAGES}", f"объявлены и установлены: {qa or '—'}")
+    c.add(len(qa) >= T["qa_packages"], f"≥ {T['qa_packages']} QA-пакета из {QA_PACKAGES}", f"объявлены и установлены: {qa or '—'}")
     pc = ctx.find_file([".pre-commit-config.yaml"])
     if pc:
         txt = pc.read_text(encoding="utf-8").lower()
@@ -442,7 +434,7 @@ def evaluate(ctx: Ctx, gh: dict | None) -> list[Criterion]:
 
     # 10 — максимум
     c = new("Максимум: 6 витрин, CI, evaluator, incremental/snapshot, портабельность, второй таргет")
-    c.add(n_pass >= 6, "все 6 витрин сходятся с эталоном", marts_detail(6))
+    c.add(n_pass >= T["marts_all"], f"все {T['marts_all']} витрин сходятся с эталоном", marts_detail(T["marts_all"]))
     c.add(any("dbt_project_evaluator" in d for d in declared) and "dbt_project_evaluator" in installed, "dbt_project_evaluator установлен")
     snaps = ctx.nodes("snapshot")
     inc = [n["name"] for n in own_models if n.get("config", {}).get("materialized") == "incremental"]
@@ -470,7 +462,7 @@ def evaluate(ctx: Ctx, gh: dict | None) -> list[Criterion]:
 
 
 def level_name(points: int) -> str:
-    return "10 баллов" if points >= 10 else "8–9 баллов" if points >= 8 else "6–7 баллов" if points >= 6 else "ниже 6 баллов"
+    return next((lv["name"] for lv in S["levels"] if points >= lv["min_points"]), S["below_levels_name"])
 
 
 def main() -> int:
@@ -479,7 +471,7 @@ def main() -> int:
     ap.add_argument("--with-second", action="store_true", help="вместе с --no-run: всё же собрать проект на втором таргете")
     ap.add_argument("--no-gh", action="store_true", help="не обращаться к GitHub API (критерий 7 и CI будут не пройдены)")
     ap.add_argument("--json", action="store_true", help="отчёт в JSON")
-    ap.add_argument("--min", type=int, default=1, help="минимальный балл для кода возврата 0")
+    ap.add_argument("--min", type=int, default=S["default_min_points"], help="минимальный балл для кода возврата 0")
     ap.add_argument("--second-target", default=os.environ.get("HW_SECOND_TARGET") or None,
                     help="имя второго target (по умолчанию $HW_SECOND_TARGET или первый не-duckdb из profiles.yml)")
     a = ap.parse_args()
@@ -488,17 +480,16 @@ def main() -> int:
         v = os.environ.get(name) or default
         if not v:
             sys.exit(f"не задана переменная {name} (запустите `just wizard`)")
-        p = Path(v).expanduser()
-        return (p if p.is_absolute() else ROOT / p).resolve()
+        return resolve_path(v, ROOT).resolve()
 
     project = pth("HW_DBT_PROJECT_DIR")
     profiles = pth("HW_DBT_PROFILES_DIR", str(project))
-    db = pth("OLIST_DUCKDB_PATH", ".tmp/olist.duckdb")
+    db = pth("OLIST_DUCKDB_PATH")
     if not (project / "dbt_project.yml").exists():
         print(f"❌ нет dbt_project.yml в {project}", file=sys.stderr)
         return 2
     cf = json.loads(pth("CONTROL_FIGURES_JSON", "data/control_figures.json").read_text(encoding="utf-8"))
-    contract = json.loads((ROOT / "data" / "marts_contract.json").read_text(encoding="utf-8"))
+    contract = json.loads((ROOT / "data" / S["data_files"]["marts_contract"]).read_text(encoding="utf-8"))
     ctx = Ctx(project, profiles, db, cf, contract)
 
     second = a.second_target
@@ -552,11 +543,18 @@ def main() -> int:
                 if s.detail and (s.status != "ok" or s.text.startswith(("≥", "PR найден"))):
                     for ln in s.detail.splitlines():
                         print(f"        {ln}")
+                h = hint_for(s.text) if s.status in ("fail", "warn") else None
+                if h:
+                    print(f"        💡 {h['hint']}")
+                    if h.get("url"):
+                        print(f"        🔗 {h['url']}")
         bar = "".join("🟩" if c.passed else "⬜" for c in criteria)
         print(f"\n{'=' * 8} 🏁 Итог {'=' * 8}\n{bar}\n🎯 Проект прошёл на {points} из 10 баллов — уровень «{level_name(points)}»")
         miss = [f"{c.n}. {c.title}" for c in criteria if not c.passed]
         if miss:
-            print("📌 Не хватает: " + "; ".join(miss))
+            print("📌 Не хватает:")
+            for m in miss:
+                print(f"   • {m}")
     return 0 if points >= a.min else 1
 
 

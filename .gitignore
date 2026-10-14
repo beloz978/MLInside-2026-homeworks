@@ -4,9 +4,14 @@
 .env.*.bak
 *.bak
 .venv/
-.tmp/*
-!.tmp/.gitkeep
 *.duckdb
 *.duckdb.wal
 __pycache__/
 .idea/
+
+.claude
+.claude/.cc-writes
+.claude/.tmp
+.claude/.tmp/.gitkeep
+dbt/.claude/.cc-writes
+dbt/.claude

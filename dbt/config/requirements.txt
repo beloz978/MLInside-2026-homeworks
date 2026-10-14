@@ -4,6 +4,7 @@ kagglehub>=0.3
 pyyaml>=6
 dbt-core>=1.8
 dbt-duckdb>=1.8
+pytest>=8                  # make test
 
 # Опционально — второй таргет (раскомментируйте нужное)
 # psycopg2-binary>=2.9     # Postgres: dbt-postgres

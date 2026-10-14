@@ -1,7 +1,7 @@
 """Мини-загрузчик .env и .env.local (без внешних зависимостей).
 
 Уже заданные в окружении переменные не перезаписываются: shell/direnv/just главнее файлов.
-Порядок: окружение > .env.local > .env.
+Порядок: окружение > .env.local > .env. Файлы лежат в dbt/config/; относительные пути внутри них считаются от ROOT (dbt/).
 """
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+ENV_DIR = ROOT / "config"
 
 
 def parse_env(path: Path) -> dict[str, str]:
@@ -27,8 +28,8 @@ def parse_env(path: Path) -> dict[str, str]:
     return out
 
 
-def load_env(root: Path = ROOT) -> None:
+def load_env(env_dir: Path = ENV_DIR) -> None:
     for name in (".env.local", ".env"):          # .env.local читаем первым → он приоритетнее .env
-        for k, v in parse_env(root / name).items():
+        for k, v in parse_env(env_dir / name).items():
             if k not in os.environ or os.environ[k] == "":
                 os.environ[k] = v

@@ -1,0 +1,78 @@
+# Общие (несекретные) константы скриптов самопроверки. Читаются строго через settings.py:
+# нет секции или ключа — ошибка с именем ключа. Личные пути и таргеты — config/.env, секреты — config/.env.local.
+# Регулярки — в одинарных кавычках (обратные слэши не экранируются).
+
+check_hw:
+  marts: [mart_daily_state_metrics, mart_delivery_by_state, mart_category_performance,
+          mart_customer_profile, mart_hourly_order_pattern, mart_seller_analytics]
+  qa_packages: [audit_helper, dbt_expectations, elementary, dbt_meta_testing, dbt_profiler]
+  order_hooks: [dbt-checkpoint, dbt-score, dbt-bouncer, dbt-coverage]
+  segment_values: [HIGH, MEDIUM, LOW]
+  tolerance: {rel: 0.005, abs: 0.5}
+  default_min_points: 1          # --min: балл, с которого код возврата 0
+  search_parents: 2              # файлы уровня репозитория ищем в каталоге проекта и стольких родителях
+  data_files: {raw_expectations: raw_expectations.json, marts_contract: marts_contract.json, hints: hints.yaml}   # в dbt/data/
+  thresholds:
+    marts_basic: 2               # критерий 5
+    marts_extended: 4            # критерий 8
+    marts_all: 6                 # критерий 10
+    min_segment_values: 2
+    singular_tests: 3
+    unit_tests: 1
+    qa_packages: 2
+    pr_title_len: 5
+    pr_body_len: 30
+  levels:                        # по убыванию; ниже последнего — below_levels_name
+    - {min_points: 10, name: "10 баллов"}
+    - {min_points: 8, name: "8–9 баллов"}
+    - {min_points: 6, name: "6–7 баллов"}
+  below_levels_name: "ниже 6 баллов"
+
+fetch_olist_seeds:
+  kaggle_dataset: olistbr/brazilian-ecommerce
+  files: [olist_orders_dataset, olist_order_items_dataset, olist_customers_dataset, olist_products_dataset,
+          olist_sellers_dataset, olist_order_payments_dataset, olist_order_reviews_dataset,
+          product_category_name_translation]
+  geolocation_file: olist_geolocation_dataset
+
+gh_api:
+  api_url: https://api.github.com
+  user_agent: mlinside-hw-check
+  http_timeout_s: 20
+  cmd_timeout_s: 15
+  default_branches: [HEAD, main, master]   # для них PR «по ветке» не ищем
+  ok_conclusions: [success, skipped, neutral]
+  per_page: {branch_pr: 1, author_prs: 30, latest_pr: 1, actions_runs: 30}
+  regex:
+    repo_from_remote: 'github\.com[:/]+([^/\s]+)/([^/\s]+?)(?:\.git)?$'
+    pr_image: '!\[[^\]]*\]\(|<img\s|user-attachments|\.(png|jpe?g|gif)\b'
+    pr_versions: 'dbt[-_ ]?core\s*[=:~]*\s*v?\d+\.\d+'
+    pr_ci_link: 'github\.com/[^\s)]+/actions/runs/\d+'
+
+check_db_from_profile:
+  timeout_s: 5.0
+
+wizard:
+  duckdb_path: data/olist.duckdb   # пишется в config/.env как OLIST_DUCKDB_PATH
+  db_defaults:
+    postgres: {host: localhost, port: "5432", user: postgres, db: olist}
+    clickhouse: {host: localhost, port: "8123", user: default, db: olist}
+  db_drivers:                    # подсказка, что поставить для второго таргета
+    postgres: dbt-postgres psycopg2-binary
+    clickhouse: dbt-clickhouse clickhouse-connect
+
+doctor:
+  python_min: [3, 10]
+  tools:                         # required: false → «не обязателен», пропуск вместо FAIL
+    - {name: make, required: true}
+    - {name: uv, required: true}
+    - {name: just, required: false}
+    - {name: direnv, required: false}
+    - {name: git, required: false}
+  python_packages:               # module — что импортируем, package — что ставить
+    - {module: duckdb, package: duckdb}
+    - {module: kagglehub, package: kagglehub}
+    - {module: yaml, package: pyyaml}
+    - {module: dbt, package: dbt-core}
+  env_required: [HW_DBT_PROJECT_DIR, HW_DBT_PROFILES_DIR, OLIST_DUCKDB_PATH]
+  env_optional: [OLIST_CSV_DIR, HW_DBT_PROFILE, HW_DBT_TARGETS, HW_DBT_TARGET, CONTROL_FIGURES_JSON]

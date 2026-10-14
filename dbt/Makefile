@@ -5,7 +5,7 @@
 PY := $(if $(wildcard .venv/Scripts/python.exe),.venv/Scripts/python.exe,.venv/bin/python)
 
 .DEFAULT_GOAL := help
-.PHONY: help setup wizard seeds ready check
+.PHONY: help setup wizard seeds ready check test
 
 help: ## Список команд
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed -E 's/:.*## /\t/' | awk -F'\t' '{printf "  make %-8s %s\n", $$1, $$2}'
@@ -13,7 +13,7 @@ help: ## Список команд
 setup: ## 1. Создать .venv и поставить зависимости (нужен uv)
 	##`[[ ! -d .venv ]] && uv venv .venv
 	uv venv .venv || echo "`.venv` already exists."
-	uv pip install --python $(PY) -r requirements.txt
+	uv pip install --python $(PY) -r config/requirements.txt
 
 wizard: ## 2. Мастер настройки: GitHub, путь к проекту, Postgres/ClickHouse -> .env
 	$(PY) scripts/wizard.py
@@ -27,5 +27,8 @@ ready: ## 4. Проверка готовности: инструменты, пу
 
 check: ## 5. Финальная проверка: баллы за ДЗ (N из 10)
 	$(PY) scripts/check_hw.py
+
+test: ## Тесты скриптов (pytest)
+	$(PY) -m pytest tests -q
 
 run: setup wizard seeds ready check
