@@ -17,3 +17,4 @@ __pycache__/
 .claude/.tmp/.gitkeep
 dbt/.claude/.cc-writes
 dbt/.claude
+.ai/.locks/

@@ -4,8 +4,8 @@
 
 | Каталог | Что там |
 |---|---|
-| [`dbt/`](dbt/README.md) | ДЗ по **dbt**:<ul><li>[инструкция](dbt/MANUAL.md)</li><li>[текст задания](dbt/ДЗ/ДЗ_dbt_Olist.md)</li><li>[**автопроверка**](dbt/Makefile#L28) — `make check` ставит оценку «N из 10»</li></ul> |
+| [`dbt/`](dbt/README.md) | ДЗ по **dbt**:<ul><li>[текст задания](dbt/ДЗ/ДЗ_dbt_Olist.md)</li><li>[инструкция по самопроверке](dbt/MANUAL.md)</li><li>[**автопроверка**](dbt/Makefile#L28) — `make check` ставит оценку «N из 10»</li></ul> |
 | [`Dagster/`](Dagster/README.md) | ДЗ по **оркестрации в Dagster**: [текст задания](Dagster/ДЗ/ДЗ_Dagster_Olist.md). Берёт dbt-проект из первого ДЗ и оркестрирует его (на высшую оценку — до обученной модели). Автопроверки для Dagster здесь нет |
-| [`quizes/`](quizes/README.md) | **Тесты** по модулям курса:<ul><li>[тест 4 «Dagster»](quizes/test-4-dagster.md) — 10 вопросов с разбором + 5 резервных</li><li>[ревью теста 3 «dbt»](quizes/test-3-dbt-review.md) — замечания и переписанные варианты</li><li>[формат теста и правила правки](quizes/README.md#формат-теста)</li></ul> |
+| [`quizes/`](quizes/README.md) | **Тесты** по модулям курса:<ul><li>[тест 4 «Dagster»](quizes/test-4-dagster.md) — 10 вопросов с разбором + 5 резервных</li><li>[ревью теста 3 «dbt»](quizes/test-3-dbt-review.md) — замечания и переписанные варианты</li><li>[формат теста и правила правки](quizes/README.md#формат-теста-и-правила-правки)</li></ul> |
 
 Начните с [`dbt/README.md`](dbt/README.md): там быстрый старт, список файлов и заметки о секретах.
