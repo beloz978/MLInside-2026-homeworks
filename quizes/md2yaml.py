@@ -32,8 +32,9 @@ def parse(md: str) -> list[dict]:
     questions = []
     for i, h in enumerate(heads):
         end = heads[i + 1].start() if i + 1 < len(heads) else len(md)
-        # body stops at the next "---" separator (answers line, reserve header) or "## " heading
-        body = re.split(r"\n---|\n## ", md[h.end():end], maxsplit=1)[0]
+        # body stops at the next "---" separator (answers line, reserve header) or "## " heading;
+        # a "---" followed by an option is the question/options split line, not a terminator
+        body = re.split(r"\n---(?!\s*\*)|\n## ", md[h.end():end], maxsplit=1)[0]
         lines = [l.strip() for l in body.strip().splitlines()]
         text, options, hint, explanation = [h.group(6)] if h.group(6) else [], [], None, None
         for l in lines:
@@ -43,7 +44,7 @@ def parse(md: str) -> list[dict]:
                 hint = l.removeprefix("Подсказка:").strip()
             elif l.startswith("Разбор:"):
                 explanation = l.removeprefix("Разбор:").strip()
-            elif l and not options:
+            elif l and l != "---" and not options:
                 text.append(l)
         n_correct = sum(o["correct"] for o in options)
         questions.append({

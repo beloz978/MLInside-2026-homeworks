@@ -39,3 +39,10 @@ def test_hint_key_then_answer(capsys):
 def test_hint_key_ignored_for_simple_question():
     # «простой» is not in hint_difficulties: "h" is not bound, so it is not an answer either
     assert run({**SINGLE, "difficulty": "простой"}, "h2\r") == (1, 1)
+
+
+def test_md2yaml_split_line_before_options():
+    import md2yaml
+    md = "Вопрос 1 🟨 применение · простой\nЧто?\n\n---\n\n* А) a\n* Б) b ✅\n\nРазбор: e\n\n---\n\nОтветы: 1 — Б\n"
+    (q,) = md2yaml.parse(md)
+    assert q["text"] == "Что?" and [o["text"] for o in q["options"]] == ["a", "b"]
