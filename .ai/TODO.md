@@ -2,6 +2,13 @@
 
 Planned work, grouped by subproject; inside each section, sorted by priority (P0 → P3).
 
+## Dagster
+
+<!-- scope: Dagster/ (self-check toolchain), reference solution repo dataengy/Dagster-HW-MLI-26 -->
+
+- [ ] **P2 · TODO-dagster-selfcheck** — self-check for the Dagster homework (`make check` → «N из 10», mirroring `dbt/`) plus the reference solution `~/gi/@dataengy/Dagster-HW-MLI-26` (not created yet).
+  - Plan: [Dagster/PLAN.md](../Dagster/PLAN.md)
+
 ## quizes
 
 <!-- scope: quizes/ (*.md tests, md→yaml generator, interactive runner) -->
