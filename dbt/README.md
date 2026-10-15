@@ -4,6 +4,8 @@
 
 ## Быстрый старт
 
+Сначала пройдите тест по теме — [тест 3 «dbt»](../quizes/test-3-dbt-review.md): из корня репозитория `make quiz 3`.
+
 Нужны: [uv](https://docs.astral.sh/uv/), `make`, `git` и ваш dbt-проект. Windows: `make` есть в Git Bash/WSL или `winget install ezwinports.make`. Команды — из этого каталога, по одной:
 
 ```bash
