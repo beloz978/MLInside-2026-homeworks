@@ -7,10 +7,7 @@ quiz:
   hint_difficulties: [средний, сложный]
   # обязательные поля front matter (--- … ---) в начале quiz.ru.md: для кого, зачем, цель, контекст
   meta_required: [audience, purpose, goal, context]
-  # режим: immediate — разбор и промпт после каждого ответа; exam — только в конце, после всех вопросов
-  mode: immediate
-  # false — клавиша подсказки не работает (для экзамена)
-  hints_enabled: true
+  # режим (immediate / exam) и подсказки (вкл/выкл) задаёт пресет: quizes/src/presets.yaml
   # где quiz.py показывает подсказку отдельным пунктом: before — над вопросом, after — под ним
   hint_position: after
   # клавиша, по которой quiz.py показывает подсказку (варианты ответа — цифрами 1–9)

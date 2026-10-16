@@ -1,0 +1,32 @@
+# Пресеты теста 3 поверх базовых (../src/presets.yaml): одноимённые переопределяются по ключам, новые добавляются.
+presets:
+  quick:
+    description: "Быстрая проверка: 5 случайных основных вопросов от простых к сложным"
+    mode: immediate
+    lang: ask
+    sections: [main]
+    pick: random
+    count: 5
+    difficulty_min: простой
+    difficulty_max: сложный
+    order: asc
+    topics: all
+    topic_order: mixed
+    shuffle_options: false
+    hints: true
+    seed: null
+  tests:
+    description: "Только про тесты данных и снапшоты: основные и резервные вопросы"
+    mode: immediate
+    lang: ask
+    sections: [main, reserve]
+    pick: first
+    count: all
+    difficulty_min: простой
+    difficulty_max: сложный
+    order: as_is
+    topics: ["Тесты данных", "Снапшоты"]
+    topic_order: grouped
+    shuffle_options: false
+    hints: true
+    seed: null

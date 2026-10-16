@@ -1,9 +1,11 @@
 """Interactive terminal quiz from quizes/<name>.yaml (made by md2yaml.py), with a JSONL event log per run.
 
-Usage: uv run --with questionary --with pyyaml python quizes/src/quiz.py quizes/quiz-4-dagster [--lang ru|en]
-The language is asked at start when the quiz has several (quiz.<lang>.md) and --lang is not given.
-Only the main section is asked; reserve questions are skipped.
-Modes (quiz.mode): immediate — explanation and a ChatGPT/Claude prompt after every answer; exam — nothing until the end,
+Usage: uv run --with questionary --with pyyaml python quizes/src/quiz.py quizes/quiz-4-dagster [--preset NAME] [--lang ru|en]
+       ... quiz.py quizes/quiz-4-dagster --list-presets
+A preset (quizes/src/presets.yaml + <quiz_dir>/presets.yaml) fixes the mode, language, which questions (sections, count,
+difficulty range, topics), their order and whether options are shuffled; it is asked at start unless --preset is given.
+The language is asked when the preset says `ask`, the quiz has several and --lang is not given.
+Modes (preset key `mode`): immediate — explanation and a ChatGPT/Claude prompt after every answer; exam — nothing until the end,
 then a results table, explanations and prompts for the failed questions. Prompts are also saved next to the log.
 Keys: digits 1–9 pick (single) or toggle (multi) an option, Enter answers, the hint key shows the hint,
 the pause key pauses the timer (settings: quizes/src/settings.yml + <quiz_dir>/settings.yml).
@@ -14,6 +16,7 @@ import getpass
 import json
 import os
 import platform
+import random
 import re
 import socket
 import subprocess
@@ -28,27 +31,24 @@ import yaml
 from prompt_toolkit.key_binding import KeyBindings, merge_key_bindings
 from questionary.prompts.common import InquirerControl
 
+from presets import load_presets, select, validate
 from settings import load_settings as load_merged, require
 
 SHOW_HINT = object()  # returned by a prompt when the hint key is pressed
 PAUSE = object()  # returned by a prompt when the pause key is pressed
 IDENTITY_MODES = ("os_git", "ask", "env")
-MODES = ("immediate", "exam")
 
 
 def load_settings(quiz_dir: Path) -> tuple[dict, dict, dict]:
     """(quiz, log, lang) sections of the merged settings; missing keys or bad values raise ValueError."""
     cfg = load_merged(quiz_dir)
-    require(cfg, *(f"quiz.{k}" for k in ("difficulties", "hint_difficulties", "hint_position", "hint_key", "pause_key",
-                                           "mode", "hints_enabled")),
+    require(cfg, *(f"quiz.{k}" for k in ("difficulties", "hint_difficulties", "hint_position", "hint_key", "pause_key")),
             *(f"log.{k}" for k in ("dir", "identity", "identity_env")), "lang")
     for code, L in cfg["lang"].items():
         require(cfg, *(f"lang.{code}.{k}" for k in ("difficulties", "ui", "prompt_failed")))
     quiz, log = cfg["quiz"], cfg["log"]
     if quiz["hint_position"] not in ("before", "after"):
         raise ValueError(f"{cfg['_files']}: quiz.hint_position must be before or after")
-    if quiz["mode"] not in MODES:
-        raise ValueError(f"{cfg['_files']}: quiz.mode must be one of {', '.join(MODES)}")
     if log["identity"] not in IDENTITY_MODES:
         raise ValueError(f"{cfg['_files']}: log.identity must be one of {', '.join(IDENTITY_MODES)}")
     return quiz, log, cfg["lang"]
@@ -248,7 +248,7 @@ def ask(q: dict, n: int, total: int, settings: dict, log: Log, results: list | N
     log.q = q.get("id", str(n))
     n_hints = len(hints_of(q, settings))
     log.emit("question_shown", n=n, level=q["level"], difficulty=q.get("difficulty"), multi=q["multi"],
-             hint_available=n_hints > 0, n_hints=n_hints)
+             hint_available=n_hints > 0, n_hints=n_hints, option_order=[o.get("orig", i) for i, o in enumerate(q["options"])])
     state, hints_shown = State(), 0
     while True:
         answer = prompt(q, hints_shown, settings, state, log, **io)
@@ -267,7 +267,7 @@ def ask(q: dict, n: int, total: int, settings: dict, log: Log, results: list | N
             break
     picked = answer if q["multi"] else [answer]
     got, best = score(q, picked)
-    log.emit("answer", picked=sorted(picked), correct=[i for i, o in enumerate(q["options"]) if o["correct"]],
+    log.emit("answer", picked=sorted(picked), picked_orig=sorted(q["options"][i].get("orig", i) for i in picked), correct=[i for i, o in enumerate(q["options"]) if o["correct"]],
              got=got, max=best, ms_since_question=state.ms(), paused_ms=state.paused_ms, hints_used=hints_shown,
              n_toggles=state.toggles, mode=settings["mode"])
     prompt_text = None
@@ -310,19 +310,48 @@ def choose_language(langs: list[str], wanted: str | None, lang_cfg: dict, **io) 
     return questionary.select(lang_cfg[langs[0]]["ui"]["language"], choices=langs, **io).unsafe_ask()
 
 
+def choose_preset(presets: dict, wanted: str | None, **io) -> str:
+    if wanted:
+        if wanted not in presets:
+            sys.exit(f"--preset {wanted}: unknown; available: {', '.join(presets)}")
+        return wanted
+    if len(presets) == 1:
+        return next(iter(presets))
+    return questionary.select("Пресет / Preset:", choices=[questionary.Choice(f"{n} — {p['description']}", value=n)
+                                                         for n, p in presets.items()], **io).unsafe_ask()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Interactive quiz")
     ap.add_argument("quiz_dir", type=Path)
     ap.add_argument("--lang")
+    ap.add_argument("--preset")
+    ap.add_argument("--list-presets", action="store_true")
     args = ap.parse_args()
     quiz_dir, quiz_file = args.quiz_dir, args.quiz_dir / "quiz.yaml"
     raw = yaml.safe_load(quiz_file.read_text(encoding="utf-8"))
     quiz_cfg, log_cfg, lang_cfg = load_settings(quiz_dir)
-    lang = choose_language(raw["langs"], args.lang, lang_cfg)
-    data = localize(raw, lang, quiz_cfg, lang_cfg[lang])
-    settings = {**quiz_cfg, "lang": lang, "ui": lang_cfg[lang]["ui"], "prompt_failed": lang_cfg[lang]["prompt_failed"],
+    presets = load_presets(quiz_dir)
+    topics = {t for q in raw["questions"] for t in (q.get("topic") or {}).values() if t}
+    for name, p in presets.items():
+        validate(name, p, quiz_cfg, raw["langs"], topics)
+    if args.list_presets:
+        for name, p in presets.items():
+            print(f"{name:16} {p['mode']:9} {p['description']}")
+        return
+    preset_name = choose_preset(presets, args.preset)
+    preset = presets[preset_name]
+    lang = choose_language(raw["langs"], args.lang or (preset["lang"] if preset["lang"] != "ask" else None), lang_cfg)
+    seed = preset["seed"] if preset["seed"] is not None else random.SystemRandom().randrange(2**31)
+    try:
+        selected = select(raw["questions"], preset, quiz_cfg, random.Random(seed))
+    except ValueError as e:
+        sys.exit(f"preset {preset_name!r}: {e}")
+    data = localize({**raw, "questions": selected}, lang, quiz_cfg, lang_cfg[lang])
+    settings = {**quiz_cfg, "mode": preset["mode"], "hints_enabled": preset["hints"], "lang": lang,
+                "ui": lang_cfg[lang]["ui"], "prompt_failed": lang_cfg[lang]["prompt_failed"],
                 "title": data.get("title", ""), "meta": data["meta"]}
-    questions = [q for q in data["questions"] if q.get("section", "main") == "main"]
+    questions = data["questions"]
     print(data.get("title", ""))
     meta = data["meta"]
     if meta:
@@ -332,9 +361,10 @@ def main() -> None:
     slug = re.sub(r"[^\w.-]+", "_", who["user"]) or "user"
     log_dir = quiz_dir / log_cfg["dir"]  # relative to the quiz dir
     log = Log(log_dir / f"{datetime.now():%y%m%d-%H%M%S}-{quiz_dir.resolve().name}-{slug}.jsonl")
-    log.emit("run_start", **who, quiz_file=str(quiz_file), lang=lang, cwd=os.getcwd(),
-             repo_commit=git("rev-parse", "--short", "HEAD"), python=platform.python_version(),
-             platform=platform.platform(), n_questions=len(questions), mode=settings["mode"], meta=meta)
+    log.emit("run_start", **who, quiz_file=str(quiz_file), lang=lang, preset=preset_name, preset_values=preset, seed=seed,
+             question_ids=[q["id"] for q in questions], cwd=os.getcwd(), repo_commit=git("rev-parse", "--short", "HEAD"),
+             python=platform.python_version(), platform=platform.platform(), n_questions=len(questions),
+             mode=settings["mode"], meta=meta)
     got = best = 0
     results: list[dict] = []
     try:

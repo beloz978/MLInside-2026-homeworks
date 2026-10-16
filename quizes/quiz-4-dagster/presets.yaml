@@ -1,0 +1,47 @@
+# Пресеты теста 4 поверх базовых (../src/presets.yaml): одноимённые переопределяются по ключам, новые добавляются.
+presets:
+  quick:
+    description: "Быстрая проверка: 5 случайных основных вопросов от простых к сложным"
+    mode: immediate
+    lang: ask
+    sections: [main]
+    pick: random
+    count: 5
+    difficulty_min: простой
+    difficulty_max: сложный
+    order: asc
+    topics: all
+    topic_order: mixed
+    shuffle_options: false
+    hints: true
+    seed: null
+  hard:
+    description: "Сложные вопросы: основные и резервные, только сложные, без подсказок"
+    mode: immediate
+    lang: ask
+    sections: [main, reserve]
+    pick: first
+    count: all
+    difficulty_min: сложный
+    difficulty_max: сложный
+    order: as_is
+    topics: all
+    topic_order: mixed
+    shuffle_options: false
+    hints: false
+    seed: null
+  dbt-and-assets:
+    description: "Только про dbt и ассеты: темы «Интеграция с dbt» и «Ассеты и lineage», основные и резерв"
+    mode: immediate
+    lang: ask
+    sections: [main, reserve]
+    pick: first
+    count: all
+    difficulty_min: простой
+    difficulty_max: сложный
+    order: as_is
+    topics: ["Интеграция с dbt", "Ассеты и lineage"]
+    topic_order: grouped
+    shuffle_options: false
+    hints: true
+    seed: null

@@ -4,9 +4,13 @@ src := dir / "../src"
 
 default: run
 
-# Пройти тест (lang: ru или en; без него язык спросят при старте)
-run lang="":
-    uv run --with questionary --with pyyaml python {{src}}/quiz.py {{dir}} {{ if lang != "" { "--lang " + lang } else { "" } }}
+# Пройти тест (preset — имя пресета, lang — ru или en; без них спросят при старте)
+run preset="" lang="":
+    uv run --with questionary --with pyyaml python {{src}}/quiz.py {{dir}} {{ if preset != "" { "--preset " + preset } else { "" } }} {{ if lang != "" { "--lang " + lang } else { "" } }}
+
+# Список пресетов этого теста
+presets:
+    uv run --with questionary --with pyyaml python {{src}}/quiz.py {{dir}} --list-presets
 
 # quiz.<язык>.md → quiz.yaml с самопроверкой (section — заголовок раздела, если нужен только он)
 yaml section="":

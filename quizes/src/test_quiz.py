@@ -210,3 +210,78 @@ def test_exam_mode_prints_nothing_until_report(capsys):
 def test_hints_can_be_disabled():
     assert run(SINGLE, "h2\r", {**SETTINGS, "hints_enabled": False}) == (1, 1)
     assert not [e for e in events() if e["event"] == "hint_shown"]
+
+
+# ---- presets ----
+import random  # noqa: E402
+
+import presets as pr  # noqa: E402
+
+QCFG = {"difficulties": ["простой", "средний", "сложный"]}
+BASE_P = pr.load_presets(Path("/nonexistent"))["practice"]
+
+
+def bq(i, section="main", difficulty="простой", topic="A", n_opts=3):
+    return {"id": f"{'q' if section == 'main' else 'r'}{i}", "section": section, "difficulty": difficulty, "multi": False,
+            "topic": {"ru": topic, "en": topic + "-en"} if topic else None,
+            "options": [{"text": {"ru": str(j)}, "correct": j == 0} for j in range(n_opts)]}
+
+
+QS = [bq(1, difficulty="сложный", topic="A"), bq(2, difficulty="простой", topic="B"), bq(3, difficulty="средний", topic="A"),
+      bq(4, difficulty="простой", topic="B"), bq(5, "reserve", "сложный", "C"), bq(6, "reserve", "простой", None)]
+
+
+def sel(**over):
+    return [q["id"] for q in pr.select(QS, {**BASE_P, **over}, QCFG, random.Random(1))]
+
+
+def test_preset_filters_and_orders():
+    assert sel() == ["q1", "q2", "q3", "q4"]  # practice: main only, as is
+    assert sel(order="asc") == ["q2", "q4", "q3", "q1"] and sel(order="desc") == ["q1", "q3", "q2", "q4"]
+    assert sel(sections=["main", "reserve"], difficulty_min="средний") == ["q1", "q3", "r5"]
+    assert sel(topics=["B"]) == ["q2", "q4"] and sel(topics=["A-en"]) == ["q1", "q3"]  # any language matches
+    assert sel(topic_order="grouped") == ["q1", "q3", "q2", "q4"]
+    assert sel(count=2) == ["q1", "q2"]
+
+
+def test_preset_random_is_reproducible_by_seed():
+    a = sel(count=2, pick="random", order="random")
+    assert a == sel(count=2, pick="random", order="random") and len(a) == 2
+    other = [q["id"] for q in pr.select(QS, {**BASE_P, "count": 2, "pick": "random", "order": "random"}, QCFG, random.Random(2))]
+    assert set(a) <= {"q1", "q2", "q3", "q4"} and set(other) <= {"q1", "q2", "q3", "q4"}
+
+
+def test_shuffle_options_keeps_correct_and_remembers_origin():
+    (q, *_), = [pr.select(QS, {**BASE_P, "shuffle_options": True}, QCFG, random.Random(5))]
+    assert sorted(o["orig"] for o in q["options"]) == [0, 1, 2]
+    assert [o["orig"] for o in q["options"] if o["correct"]] == [0]
+
+
+def test_preset_validation_names_preset_and_key():
+    langs, topics = ["ru", "en"], {"A", "A-en"}
+    pr.validate("ok", BASE_P, QCFG, langs, topics)
+    for key, bad, msg in (("mode", "fast", "mode"), ("count", 0, "count"), ("order", "up", "order"), ("topics", ["Z"], "unknown"),
+                          ("seed", "x", "seed"), ("hints", "yes", "hints"),
+                          ("sections", [], "sections"), ("lang", "de", "lang")):
+        with pytest.raises(ValueError, match=f"preset 'p'.*{msg}"):
+            pr.validate("p", {**BASE_P, key: bad}, QCFG, langs, topics)
+    with pytest.raises(ValueError, match="must not be harder"):
+        pr.validate("p", {**BASE_P, "difficulty_min": "средний", "difficulty_max": "простой"}, QCFG, langs, topics)
+    with pytest.raises(ValueError, match="keys not set: seed"):
+        pr.validate("p", {k: v for k, v in BASE_P.items() if k != "seed"}, QCFG, langs, topics)
+    with pytest.raises(ValueError, match="unknown keys: extra"):
+        pr.validate("p", {**BASE_P, "extra": 1}, QCFG, langs, topics)
+    with pytest.raises(ValueError, match="selects no questions"):
+        pr.select(QS, {**BASE_P, "topics": ["B"], "difficulty_min": "средний"}, QCFG, random.Random(1))
+
+
+def test_real_quiz_presets_are_valid():
+    import yaml
+    for d in ("quiz-3-dbt-review", "quiz-4-dagster"):
+        qd = Path(__file__).parent.parent / d
+        raw = yaml.safe_load((qd / "quiz.yaml").read_text(encoding="utf-8"))
+        cfg = quiz.load_settings(qd)[0]
+        topics = {t for q in raw["questions"] for t in (q.get("topic") or {}).values() if t}
+        for name, p in pr.load_presets(qd).items():
+            pr.validate(name, p, cfg, raw["langs"], topics)
+            assert pr.select(raw["questions"], p, cfg, random.Random(0)), (d, name)
