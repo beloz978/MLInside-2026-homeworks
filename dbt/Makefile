@@ -11,12 +11,11 @@ help: ## Список команд
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed -E 's/:.*## /\t/' | awk -F'\t' '{printf "  make %-8s %s\n", $$1, $$2}'
 
 setup: ## 1. Создать .venv и поставить зависимости (нужен uv)
-	##`[[ ! -d .venv ]] && uv venv .venv
-	uv venv .venv || echo "`.venv` already exists."
+	[ -d .venv ] || uv venv .venv
 	uv pip install --python $(PY) -r config/requirements.txt
 
 wizard: ## 2. Мастер настройки: GitHub, путь к проекту, Postgres/ClickHouse -> .env
-	$(PY) scripts/wizard.py
+	$(PY) scripts/wizard.py $(WIZARD_ARGS)
 
 seeds: ## 3. Скачать Olist через kagglehub в seeds/ вашего проекта (затем dbt seed)
 	$(PY) scripts/fetch_olist_seeds.py --only-missing

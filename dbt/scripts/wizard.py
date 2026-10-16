@@ -10,7 +10,8 @@
   5) 🔌 по желанию проверяет подключение к СУБД и GitHub.
 
 Секреты никогда не печатаются и не попадают в .env (только в .env.local, он в .gitignore).
-Без вопросов (CI/тест): python scripts/wizard.py --non-interactive --project PATH [--db postgres ...]
+Без вопросов (CI/тест): python scripts/wizard.py -ni|--non-interactive --project PATH [--db postgres ...]
+  (--project обязателен, если HW_DBT_PROJECT_DIR не задан в config/.env или окружении)
 """
 from __future__ import annotations
 
@@ -22,7 +23,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from envload import ENV_DIR, ROOT, parse_env  # noqa: E402
+from envload import ENV_DIR, ROOT, load_env, parse_env  # noqa: E402
 from settings import section  # noqa: E402
 from utils import ask, choose, resolve_path, update_env_file, yesno  # noqa: E402
 
@@ -112,7 +113,8 @@ def step_project(ni: bool, project_arg: str | None) -> dict[str, str]:
     pp = resolve_path(pv, ROOT)
     print("   ✅ profiles.yml на месте" if (pp / "profiles.yml").exists() else "   ⚠️  profiles.yml там не найден")
     name = ask("Имя профиля в profiles.yml", os.environ.get("HW_DBT_PROFILE", "olist"), ni=ni)
-    return {"HW_DBT_PROJECT_DIR": rel(p), "HW_DBT_PROFILES_DIR": rel(pp), "HW_DBT_PROFILE": name}
+    # абсолютные пути без раскрытия симлинков: остаётся тот путь, что указал пользователь
+    return {"HW_DBT_PROJECT_DIR": os.path.abspath(p), "HW_DBT_PROFILES_DIR": os.path.abspath(pp), "HW_DBT_PROFILE": name}
 
 
 def step_db(ni: bool, kind_arg: str | None, args: argparse.Namespace) -> tuple[dict[str, str], dict[str, str]]:
@@ -144,8 +146,8 @@ def step_db(ni: bool, kind_arg: str | None, args: argparse.Namespace) -> tuple[d
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--non-interactive", action="store_true", help="без вопросов: значения из аргументов/окружения/умолчаний")
-    ap.add_argument("--project", help="каталог dbt-проекта")
+    ap.add_argument("-ni", "--non-interactive", action="store_true", help="без вопросов: значения из аргументов/окружения/умолчаний")
+    ap.add_argument("--project", help="каталог dbt-проекта (обязателен с -ni, если нет HW_DBT_PROJECT_DIR в config/.env)")
     ap.add_argument("--db", choices=["none", "postgres", "clickhouse"])
     ap.add_argument("--db-host"); ap.add_argument("--db-port"); ap.add_argument("--db-user")  # noqa: E702
     ap.add_argument("--db-name"); ap.add_argument("--db-password")  # noqa: E702
@@ -154,7 +156,11 @@ def main() -> int:
     a = ap.parse_args()
     ni = a.non_interactive
     if not ni and not sys.stdin.isatty():
-        print("❌ мастер интерактивный: запустите его в терминале (или добавьте --non-interactive)")
+        print("❌ мастер интерактивный: запустите его в терминале (или добавьте -ni / --non-interactive)")
+        return 2
+    load_env()                                   # окружение > .env.local > .env — как в остальных скриптах
+    if ni and not (a.project or os.environ.get("HW_DBT_PROJECT_DIR")):
+        print("❌ с -ni нужен путь к dbt-проекту: --project PATH или HW_DBT_PROJECT_DIR в config/.env")
         return 2
 
     print("🧙 Мастер настройки самопроверки MLInside\n   Файлы config/.env (несекретное) и config/.env.local (секреты). Ctrl+C — выход без записи.")
