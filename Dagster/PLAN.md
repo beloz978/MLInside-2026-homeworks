@@ -106,7 +106,7 @@ Dagster-HW-MLI-26/
 |---|---|---|
 | 0 ✅ | Уточнить версии `dagster` / `dagster-dbt` / `dagster-dlt` (Context7); вынести путь `settings.yml` в параметр у `doctor.py` и `check_hw.py` в `dbt/` | `dbt/` тесты зелёные |
 | 1 ✅ | Эталон уровня 6–7: seeds + dbt-ассеты + checks + schedule + README | `dagster asset materialize --select '*'` зелёный |
-| 2 | `Dagster/` toolchain: Makefile, config, `inspect_defs.py`, критерии 1–6, фикстуры `empty` и `tier7` | `make check` на эталоне `tier-7` → 7, на `empty` → 0 |
+| 2 ✅ | `Dagster/` toolchain: Makefile, config, `inspect_defs.py`, критерии 1–6, фикстуры `empty` и `tier7` | `make check` на эталоне `tier-7` → **6** (критерии 1–6; 7 дадут только критерии 7–9 на этапе 4), на `empty` → 0 |
 | 3 | Эталон 8–9: automation, freshness, Telegram, resources по окружениям, pytest, pre-commit, CI | CI зелёный |
 | 4 | Критерии 7–9, фикстура `tier9` | на `tier-9` → 9 |
 | 5 | Эталон 10: `@dlt_assets`, ML-ассет | метрики в UI |
@@ -175,3 +175,23 @@ Dagster-HW-MLI-26/
 хранилище инстанса Dagster (`dagster.yaml`: `storage.postgres` с `DAGSTER_PG_*` из `config/.env.local`) и dbt-таргет `postgres` (в `profiles.yml`
 он уже есть, ключи `PG*` — в `.env.example`). Для уровня 6–7 и для автопроверки остаётся DuckDB. Перед этапом 3 проверить, что Postgres поднят
 и какие порт/БД/пользователь выданы.
+
+## 12. Этап 2: итоги
+
+Инструмент `Dagster/` собран: `Makefile` (`setup`, `ready`, `check`, `test`), `config/`, `scripts/{check_hw,inspect_defs}.py`, `scripts/settings.yml`, `data/hints.yaml`, `tests/`.
+Полный прогон на эталоне (`.claude/ref/Dagster-HW-MLI-26`, DuckDB во временный файл): **5 из 10 при `--no-gh`** (6 с PR) — критерии 1–5 проходят,
+в том числе 8/8 raw-таблиц, 43 asset check зелёные, 6/6 витрин сходятся с `control_figures.json`. На фикстуре `empty` — 0. Тесты: `Dagster/tests` — 15 passed, `dbt/tests` — 42 passed (запускать раздельно).
+
+**Что сделано сверх плана:** общий код вынесен из `dbt/scripts/check_hw.py` в `criteria.py` (модель критериев и отчёт) и `olist_data.py` (сверка raw и витрин с эталоном);
+вывод dbt-чекера до и после сверен построчно — идентичен. Критерии 7–10 есть в отчёте как заглушки (статус «info»), чтобы шкала «N из 10» не менялась по мере добавления проверок.
+
+**Решения и ограничения:**
+
+- Всё обращение к Dagster проекта студента — в `inspect_defs.py`, он запускается интерпретатором проекта (`HW_DAGSTER_PYTHON` или `.venv` проекта) и печатает JSON. Сам `check_hw.py` зависит только от `pyyaml` и `duckdb`.
+- Чекер добавляет каталог интерпретатора проекта в `PATH` дочерних процессов: без этого `dagster-dbt` не находит `dbt` (в обычной работе это делает активация venv).
+- `@definitions` (LazyDefinitions) разворачивается через `load_fn`; вариант с контекстом (`ComponentLoadContext.for_test()`) не проверен на реальном `dg`-проекте.
+- Критерий 3 определяет dbt-ассеты по kind `dbt`, staging — по ключу `^stg_`, витрины — остальные dbt-ассеты с upstream. Студенты с другими именами staging получат отказ; регулярка вынесена в `settings.yml` (`graph.staging_regex`).
+- Критерий 6 требует в описании PR версию `dagster-dbt` (регэксп `pr_versions`); отдельно `dagster`, `dbt-core` и адаптер не проверяются.
+- Реальная проверка GitHub (`pr_report`) для Dagster не прогонялась: репозитория эталона ещё нет, тесты подставляют отчёт синтетически.
+- `--no-run` читает данные из DuckDB и `HW_DAGSTER_HOME`, если он задан; без него критерии 4 и 5 по запуску не пройдут.
+- Не сделано: `wizard.py` и `MANUAL.md` (этап 6), `make data` (данные студент берёт тем же `fetch_olist_seeds.py` из `dbt/`).
