@@ -1,0 +1,11 @@
+# Окружение автопроверки (make setup). Версии — Dagster/PLAN.md §10. Проект студента может ставить свои пакеты:
+# интерпретатор проекта задаёт HW_DAGSTER_PYTHON, а этот venv нужен для doctor.py и check_hw.py.
+dagster==1.13.26
+dagster-webserver==1.13.26
+dagster-dbt==0.29.26
+dbt-core>=1.11,<1.13
+dbt-duckdb>=1.10,<1.12
+duckdb>=1.1,<2
+kagglehub>=0.3
+pyyaml>=6
+pytest>=8                  # make test

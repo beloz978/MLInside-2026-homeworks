@@ -1,0 +1,88 @@
+# Общие (несекретные) константы самопроверки ДЗ по Dagster. Читаются строго через dbt/scripts/settings.py:
+# нет секции или ключа — ошибка с именем ключа и этим файлом. Личные пути — config/.env, секреты — config/.env.local.
+# Регулярки — в одинарных кавычках (обратные слэши не экранируются).
+
+check_hw:
+  default_min_points: 1          # --min: балл, с которого код возврата 0
+  search_parents: 2              # README и файлы уровня репозитория ищем в каталоге проекта и стольких родителях
+  python_search: [".venv/bin/python", ".venv/Scripts/python.exe"]   # интерпретатор проекта студента, если HW_DAGSTER_PYTHON не задан
+  shared_data_dir: ../dbt/data   # эталоны Olist общие с ДЗ по dbt (относительно корня Dagster/)
+  data_files: {raw_expectations: raw_expectations.json, marts_contract: marts_contract.json, control_figures: control_figures.json}
+  hints_file: hints.yaml         # в Dagster/data/
+  marts: [mart_daily_state_metrics, mart_delivery_by_state, mart_category_performance,
+          mart_customer_profile, mart_hourly_order_pattern, mart_seller_analytics]
+  segment_values: [HIGH, MEDIUM, LOW]
+  tolerance: {rel: 0.005, abs: 0.5}
+  timeouts_s: {inspect: 180, materialize: 1800}
+  commands:                      # {module} подставляется из HW_DAGSTER_MODULE; python — интерпретатор проекта
+    materialize: ["-m", "dagster", "asset", "materialize", "-m", "{module}", "--select", "*"]
+  graph:
+    dbt_kind: dbt                # kind ассета, созданного dagster-dbt
+    staging_regex: '^stg_'       # ключ staging-ассета
+    daily_cron_regex: '^(@daily|\d+ \d+ \* \* \*)$'
+  readme:
+    names: [README.md, readme.md, README.rst]
+    install_regex: '(?i)(установ|install|uv sync|pip install|poetry install)'
+    run_regex: '(?i)(dagster dev|dg dev|materialize|dg launch|запуск|run)'
+  thresholds:
+    min_assets: 1
+    staging_min: 1
+    marts_min: 2                 # критерий 3: витрин в графе
+    marts_match: 2               # критерий 4: витрин, сходящихся с эталоном
+    min_checks: 1
+    pr_title_len: 5
+    pr_body_len: 30
+  levels:                        # по убыванию; ниже последнего — below_levels_name
+    - {min_points: 10, name: "10 баллов"}
+    - {min_points: 8, name: "8–9 баллов"}
+    - {min_points: 6, name: "6–7 баллов"}
+  below_levels_name: "ниже 6 баллов"
+  criteria_titles:               # порядок = номер критерия; 7–10 пока без проверок (появятся на этапах 4 и 6 плана)
+    - "Определения Dagster грузятся"
+    - "Raw-слой: 8 таблиц Olist загружены"
+    - "dbt в графе: staging и витрины, lineage без разрывов"
+    - "dbt-тесты как asset checks, витрины сходятся с эталоном"
+    - "Расписание и запуск из командной строки"
+    - "Документация и pull request"
+    - "Declarative automation, freshness, секреты не в репозитории"
+    - "Алерт в Telegram и пункт из блока «Как устроен Dagster»"
+    - "pre-commit и CI"
+    - "dlt-загрузка и обучение модели"
+  not_implemented_text: "проверка этого критерия появится в следующей версии автопроверки"
+
+inspect_defs:
+  attrs: [defs, definitions]     # имена переменных/функций с Definitions в модуле студента (первыми)
+  pythonpath: [".", "src"]       # что добавить в PYTHONPATH относительно каталога проекта
+
+gh_api:
+  api_url: https://api.github.com
+  user_agent: mlinside-hw-check
+  http_timeout_s: 20
+  cmd_timeout_s: 15
+  default_branches: [HEAD, main, master]   # для них PR «по ветке» не ищем
+  ok_conclusions: [success, skipped, neutral]
+  per_page: {branch_pr: 1, author_prs: 30, latest_pr: 1, actions_runs: 30}
+  regex:
+    repo_from_remote: 'github\.com[:/]+([^/\s]+)/([^/\s]+?)(?:\.git)?$'
+    pr_image: '!\[[^\]]*\]\(|<img\s|user-attachments|\.(png|jpe?g|gif)\b'
+    pr_versions: 'dagster[-_ ]?dbt[^\n]{0,20}\d+\.\d+'
+    pr_ci_link: 'github\.com/[^\s)]+/actions/runs/\d+'
+
+doctor:
+  python_min: [3, 11]
+  tools:                         # required: false → «не обязателен», пропуск вместо FAIL
+    - {name: make, required: true}
+    - {name: uv, required: true}
+    - {name: git, required: false}
+  python_packages:               # module — что импортируем, package — что ставить
+    - {module: dagster, package: dagster}
+    - {module: dagster_dbt, package: dagster-dbt}
+    - {module: dbt, package: dbt-core}
+    - {module: duckdb, package: duckdb}
+    - {module: kagglehub, package: kagglehub}
+    - {module: yaml, package: pyyaml}
+  env_required: [HW_DAGSTER_PROJECT_DIR, HW_DAGSTER_MODULE, OLIST_DUCKDB_PATH]
+  env_optional: [HW_DAGSTER_PYTHON, HW_DAGSTER_HOME, HW_GH_REPO, HW_GH_PR]
+  paths:                         # env — переменная с каталогом (относительно корня проекта), file — что в нём должно лежать
+    - {env: HW_DAGSTER_PROJECT_DIR, file: pyproject.toml}
+  data_files: [hints.yaml]       # в Dagster/data/
