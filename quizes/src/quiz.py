@@ -150,19 +150,25 @@ def add_hotkeys(question: questionary.Question, multi: bool, exits: dict, state:
     return question
 
 
-def prompt(q: dict, hint_shown: bool, settings: dict, state: State, log: Log, **io) -> object:
-    hint = q.get("hint") if q.get("difficulty") in settings["hint_difficulties"] else None
-    bullet = f"  • 💡 {hint}"
+def hints_of(q: dict, settings: dict) -> list[str]:
+    """Hints in the order to show them (light → detailed); none for difficulties outside hint_difficulties."""
+    return q.get("hints") or [] if q.get("difficulty") in settings["hint_difficulties"] else []
+
+
+def prompt(q: dict, hints_shown: int, settings: dict, state: State, log: Log, **io) -> object:
+    hints = hints_of(q, settings)
+    bullets = "\n".join(f"  • 💡 {i}/{len(hints)} {h}" for i, h in enumerate(hints[:hints_shown], 1)) if len(hints) > 1 \
+        else "\n".join(f"  • 💡 {h}" for h in hints[:hints_shown])
     message = q["text"]
-    if hint and hint_shown:
+    if bullets:
         if settings["hint_position"] == "before":
-            print(bullet)
+            print(bullets)
         else:
-            message = f"{message}\n{bullet}"
+            message = f"{message}\n{bullets}"
     keys = "цифры — " + ("отметить, пробел тоже" if q["multi"] else "выбрать") + ", Enter — ответить"
     exits = {settings["pause_key"]: PAUSE}
-    if hint and not hint_shown:
-        keys += f", {settings['hint_key']} — подсказка"
+    if hints_shown < len(hints):
+        keys += f", {settings['hint_key']} — подсказка" + (f" {hints_shown + 1}/{len(hints)}" if len(hints) > 1 else "")
         exits[settings["hint_key"]] = SHOW_HINT
     keys += f", {settings['pause_key']} — пауза"
     choices = [questionary.Choice(f"{i + 1}) {o['text']}", value=i) for i, o in enumerate(q["options"])]
@@ -174,15 +180,15 @@ def prompt(q: dict, hint_shown: bool, settings: dict, state: State, log: Log, **
 def ask(q: dict, n: int, total: int, settings: dict, log: Log, **io) -> tuple[int, int]:
     print(f"\nВопрос {n}/{total} · {q['level']}" + (f" · {q['difficulty']}" if q.get("difficulty") else ""))
     log.q = q.get("id", str(n))
-    hint_available = bool(q.get("hint")) and q.get("difficulty") in settings["hint_difficulties"]
+    n_hints = len(hints_of(q, settings))
     log.emit("question_shown", n=n, level=q["level"], difficulty=q.get("difficulty"), multi=q["multi"],
-             hint_available=hint_available)
-    state, hint_shown = State(), False
+             hint_available=n_hints > 0, n_hints=n_hints)
+    state, hints_shown = State(), 0
     while True:
-        answer = prompt(q, hint_shown, settings, state, log, **io)
+        answer = prompt(q, hints_shown, settings, state, log, **io)
         if answer is SHOW_HINT:
-            hint_shown = True
-            log.emit("hint_shown", ms_since_question=state.ms())
+            hints_shown += 1
+            log.emit("hint_shown", level=hints_shown, of=n_hints, ms_since_question=state.ms())
         elif answer is PAUSE:
             log.emit("pause")
             p0 = time.monotonic()
@@ -196,7 +202,7 @@ def ask(q: dict, n: int, total: int, settings: dict, log: Log, **io) -> tuple[in
     picked = answer if q["multi"] else [answer]
     got, best = score(q, picked)
     log.emit("answer", picked=sorted(picked), correct=[i for i, o in enumerate(q["options"]) if o["correct"]],
-             got=got, max=best, ms_since_question=state.ms(), paused_ms=state.paused_ms, hint_used=hint_shown,
+             got=got, max=best, ms_since_question=state.ms(), paused_ms=state.paused_ms, hints_used=hints_shown,
              n_toggles=state.toggles)
     right = "; ".join(o["text"] for o in q["options"] if o["correct"])
     print(f"{'✅' if got == best else '❌'} {got}/{best}. Верно: {right}")
@@ -212,12 +218,15 @@ def main() -> None:
     questions = [q for q in data["questions"] if q.get("section", "main") == "main"]
     settings, log_cfg = load_settings(quiz_dir)
     print(data.get("title", ""))
+    meta = data.get("meta") or {}
+    if meta:
+        print(f"Для кого: {meta['audience']}\nЦель: {meta['goal']}" + (f"\nВремя: ~{meta['duration_min']} мин" if meta.get("duration_min") else ""))
     who = identity(log_cfg)
     slug = re.sub(r"[^\w.-]+", "_", who["user"]) or "user"
     log_dir = quiz_dir / log_cfg["dir"]  # relative to the quiz dir
     log = Log(log_dir / f"{datetime.now():%y%m%d-%H%M%S}-{quiz_dir.resolve().name}-{slug}.jsonl")
     log.emit("run_start", **who, quiz_file=str(quiz_file), cwd=os.getcwd(), repo_commit=git("rev-parse", "--short", "HEAD"),
-             python=platform.python_version(), platform=platform.platform(), n_questions=len(questions))
+             python=platform.python_version(), platform=platform.platform(), n_questions=len(questions), meta=meta)
     got = best = 0
     try:
         for n, q in enumerate(questions, 1):

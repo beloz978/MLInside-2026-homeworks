@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import quiz  # noqa: E402
 
 SETTINGS = {"hint_difficulties": ["средний"], "hint_position": "after", "hint_key": "h", "pause_key": "p"}
-SINGLE = {"text": "Q?", "level": "🟨", "difficulty": "средний", "multi": False, "hint": "подумай",
+SINGLE = {"text": "Q?", "level": "🟨", "difficulty": "средний", "multi": False, "hints": ["подумай"],
           "explanation": "e", "options": [{"text": t, "correct": t == "b"} for t in "abcd"]}
 MULTI = {**SINGLE, "multi": True, "options": [{"text": t, "correct": t in "ac"} for t in "abcd"]}
 
@@ -69,7 +69,7 @@ def test_log_choose_unchoose_hint_answer():
     assert names == ["question_shown", "choose", "choose", "unchoose", "hint_shown", "answer"]
     assert [e.get("option") for e in ev if e["event"] in ("choose", "unchoose")] == [1, 2, 1]
     ans = ev[-1]
-    assert ans["picked"] == [2] and ans["hint_used"] and ans["n_toggles"] == 3
+    assert ans["picked"] == [2] and ans["hints_used"] == 1 and ans["n_toggles"] == 3
     assert [e["ms"] for e in ev] == sorted(e["ms"] for e in ev)
 
 
@@ -102,3 +102,38 @@ def test_settings_override_wins_and_missing_errors(tmp_path):
         settings.require(cfg, "quiz.nope")
     with pytest.raises(ValueError, match="settings.yml missing"):
         settings.load_settings(tmp_path / "absent")
+
+
+def test_several_hints_come_one_by_one_in_order(capsys):
+    q = {**SINGLE, "hints": ["легко", "подробно"]}
+    assert run(q, "hh2\r", {**SETTINGS, "hint_position": "before"}) == (1, 1)
+    out = capsys.readouterr().out
+    assert out.index("1/2 легко") < out.index("2/2 подробно")
+    hs = [e for e in events() if e["event"] == "hint_shown"]
+    assert [(e["level"], e["of"]) for e in hs] == [(1, 2), (2, 2)]
+    assert events()[-1]["hints_used"] == 2
+
+
+def test_extra_hint_key_after_last_hint_is_ignored():
+    assert run(SINGLE, "hh2\r") == (1, 1)  # one hint only: the second h is not bound
+    assert [e["level"] for e in events() if e["event"] == "hint_shown"] == [1]
+
+
+def test_front_matter_topic_and_hints_parse():
+    import md2yaml
+    meta, md = md2yaml.split_front_matter("---\naudience: a\ngoal: g\n---\n\nТест\n\nВопрос 1 🟨 применение · средний\nЧто?\n\n---\n\n* А) a\n* Б) b ✅\n\nТема: ref\n\nПодсказка: раз\n\nПодсказка: два\n\nРазбор: e\n")
+    assert meta == {"audience": "a", "goal": "g"} and md.startswith("Тест")
+    (q,) = md2yaml.parse(md)
+    assert q["topic"] == "ref" and q["hints"] == ["раз", "два"]
+
+
+def test_self_check_needs_meta_and_hint():
+    import md2yaml
+    q = {"id": "q1", "options": [{"text": "a", "correct": True}, {"text": "b", "correct": False}], "explanation": "e",
+         "difficulty": "средний", "hints": ["h"], "section": "main", "multi": False}
+    cfg = {"difficulties": ["простой", "средний"], "hint_difficulties": ["средний"], "meta_required": ["goal"]}
+    with pytest.raises(AssertionError, match="front matter lacks: goal"):
+        md2yaml.self_check("", [q], cfg, {})
+    with pytest.raises(AssertionError, match="needs a «Подсказка:»"):
+        md2yaml.self_check("", [{**q, "hints": []}], cfg, {"goal": "g"})
+    md2yaml.self_check("", [q], cfg, {"goal": "g"})
