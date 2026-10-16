@@ -84,7 +84,7 @@ Dagster-HW-MLI-26/
   config/ .env.example .env.local.example
   dbt/olist/                         # dbt-проект из ДЗ 1 (staging, 4+ витрины, тесты)
   src/olist_dagster/
-    definitions.py                   # load_from_defs_folder / Definitions.merge
+    definitions.py                   # обычный dg.Definitions(...) — явнее для студента, чем load_from_defs_folder
     defs/
       raw/      seeds.py (6–9: dbt seed)  dlt_olist.py (10: @dlt_assets из kagglehub CSV)
       dbt/      assets.py (@dbt_assets + DagsterDbtTranslator: группы, deps на raw)
@@ -105,7 +105,7 @@ Dagster-HW-MLI-26/
 | Этап | Что сделать | Готово, когда |
 |---|---|---|
 | 0 ✅ | Уточнить версии `dagster` / `dagster-dbt` / `dagster-dlt` (Context7); вынести путь `settings.yml` в параметр у `doctor.py` и `check_hw.py` в `dbt/` | `dbt/` тесты зелёные |
-| 1 | Эталон уровня 6–7: seeds + dbt-ассеты + checks + schedule + README | `dagster asset materialize --select '*'` зелёный |
+| 1 ✅ | Эталон уровня 6–7: seeds + dbt-ассеты + checks + schedule + README | `dagster asset materialize --select '*'` зелёный |
 | 2 | `Dagster/` toolchain: Makefile, config, `inspect_defs.py`, критерии 1–6, фикстуры `empty` и `tier7` | `make check` на эталоне `tier-7` → 7, на `empty` → 0 |
 | 3 | Эталон 8–9: automation, freshness, Telegram, resources по окружениям, pytest, pre-commit, CI | CI зелёный |
 | 4 | Критерии 7–9, фикстура `tier9` | на `tier-9` → 9 |
@@ -147,3 +147,31 @@ Dagster-HW-MLI-26/
 - **Автоматизация:** `AutomationCondition.eager()` (можно задавать и на `define_asset_job`); блокирующая проверка — аргумент `blocking` у `@asset_check`.
 - **Свежесть:** в документации API есть класс `FreshnessPolicy` (`time_window`, `cron`), в dagster-dbt политика задаётся через `meta.dagster.freshness_policy`. Точные сигнатуры проверить при реализации этапа 1 на установленной 1.13.26 — публичный API здесь менялся.
 - **Не проверено:** `dg` / components (`DbtProjectComponent`) — в эталоне этап 1 начинаем с `@dbt_assets`, как самого стабильного варианта.
+
+## 11. Этап 1: итоги
+
+Эталон уровня 6–7 собран и проверен: **21 ассет** (8 raw + 6 staging + 7 marts), **43 asset check — все пройдены**, внешних ассетов нет,
+`dagster asset materialize -m olist_dagster.definitions --select '*'` зелёный (`olist_orders_dataset` = 99 441), `pytest` — 8 passed.
+Основа — dbt-проект `~/gi/@dataengy/dbt-hw-MLI-26` (без дефолта `olist.duckdb` в `profiles.yml`: правило «env без дефолтов»).
+
+**Где лежит.** Из сессии `~/gi/@dataengy/` недоступен на запись, поэтому заготовка эталона лежит в `.claude/ref/Dagster-HW-MLI-26/`
+(каталог `.claude/` в `.gitignore` репозитория ДЗ, в коммиты не попадает). Её надо перенести в `~/gi/@dataengy/Dagster-HW-MLI-26`,
+инициализировать репозиторий, первый коммит сделать в ветку `tier-7` и запушить под аккаунтом `dataengy`.
+
+**Что вылезло при реализации (для чекера и ДЗ):**
+
+- dbt не знает рёбер seed → `source()`, поэтому единый `dbt build` ставит staging раньше seeds. Нужны два мультиассета (`dbt seed` и `dbt build --exclude resource_type:seed`).
+- Модели читают `source('raw', …)`, а seeds — отдельные ассеты: без подмены зависимости получается разрыв lineage и внешние ассеты. dagster-dbt запрещает seed и source с одним ключом, поэтому подмена идёт в `DagsterDbtTranslator.get_asset_spec`. **Критерий 3 чекера должен ловить именно это** (внешние ассеты вместо seeds в группе raw).
+- `from __future__ import annotations` ломает определение `@dbt_assets`: Dagster проверяет аннотацию `context` по реальному классу. `inspect_defs.py` и шаблон для студента это учитывают.
+- dbt читает `DBT_PROJECT_DIR` из окружения, а относительный путь считает от каталога проекта; ручной `dbt parse` с относительным `--project-dir` пишет в manifest относительный `root_path`, и seeds не находят CSV. Manifest собирает `make prepare`.
+- `DbtProject.preparer.prepare()` запускает `dbt deps` (сеть, `hub.getdbt.com`); в песочнице он частично перезаписал `dbt_packages`. В эталоне `prepare` делает только `dbt parse`, пакеты ставит `make deps`.
+- Singular- и unit-тесты dbt asset checks не создают (нужен `meta.dagster.ref`): checks — только generic-тесты из `schema.yml`. Решить на этапе 3: добавить `meta` или оставить как есть.
+- `dagster definitions validate` помечен как устаревший в пользу `dg check defs` (нужен `dagster-dg-cli` и `[tool.dg]`) — вернуться к этому в CI на этапе 3.
+
+**Не сделано на этапе 1:** скриншоты lineage и запуска (`docs/screenshots/`, делаются вручную из `make dev`), `make data` не проверен
+(нужен Kaggle; в тестах использованы seeds из `dbt-hw-MLI-26`), ветка `tier-7` и push.
+
+**Общий Postgres (`~/.apps/pg`, готовит другая сессия).** На момент этапа 1 каталога ещё нет. Планируется на этапе 3 для `prod`-окружения:
+хранилище инстанса Dagster (`dagster.yaml`: `storage.postgres` с `DAGSTER_PG_*` из `config/.env.local`) и dbt-таргет `postgres` (в `profiles.yml`
+он уже есть, ключи `PG*` — в `.env.example`). Для уровня 6–7 и для автопроверки остаётся DuckDB. Перед этапом 3 проверить, что Postgres поднят
+и какие порт/БД/пользователь выданы.
