@@ -22,7 +22,7 @@
 | `data/control_figures.json`, `raw_expectations.json` | те же 8 таблиц и row counts — для критерия 10 (`dlt`) |
 | `config/.env.example` + `.env.local.example`, строгое чтение без дефолтов | та же схема (см. §3) |
 
-`doctor.py` и `check_hw.py` читают `settings.yml` рядом с собой. Если путь зашит, его надо вынести в параметр — иначе в `Dagster/` их не переиспользовать. Проверить при реализации.
+`doctor.py` и `check_hw.py` принимают `--settings <проект>/scripts/settings.yml` (этап 0): корень проекта, `config/` и `data/` берутся от этого файла. Остаётся для этапа 2: `check_hw.py` dbt-специфичен целиком, поэтому `Criterion`/`Sub` и вывод отчёта нужно вынести в общий модуль, а не импортировать `check_hw` (импорт читает секцию `check_hw` и `data/hints.yaml`).
 
 ## 3. Структура `Dagster/`
 
@@ -38,7 +38,7 @@ Dagster/
 
 - **`config/.env.example`:** `HW_DAGSTER_PROJECT_DIR`, `HW_DAGSTER_MODULE` (или `HW_DAGSTER_WORKSPACE`), `HW_DBT_PROJECT_DIR`, `OLIST_CSV_DIR`, `OLIST_DUCKDB_PATH`, `DAGSTER_ENV`, `HW_GH_REPO`, `HW_GH_PR`.
 - **`config/.env.local.example`:** `GH_TOKEN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` — значения пустые.
-- **`config/requirements.txt`:** `dagster`, `dagster-webserver`, `dagster-dbt`, `dbt-core`, `dbt-duckdb`, `dagster-dlt`, `dlt[duckdb]`, `kagglehub`, `scikit-learn`, `pyyaml`, `pytest`. Версии зафиксировать по документации (Context7) на момент реализации.
+- **`config/requirements.txt`:** `dagster`, `dagster-webserver`, `dagster-dbt`, `dbt-core`, `dbt-duckdb`, `dagster-dlt`, `dlt[duckdb]`, `kagglehub`, `scikit-learn`, `pyyaml`, `pytest`. Версии — в [§10](#10-версии-этап-0).
 - **`scripts/settings.yml`:** секции `check_hw` (уровни, пороги: минимум витрин 2, cron, имена групп), `inspect_defs` (таймауты), `doctor`, `wizard`, `gh_api` (регексы версий). Читается строго, отсутствующий ключ — ошибка с именем ключа.
 
 ## 4. Как проверять проект студента
@@ -104,7 +104,7 @@ Dagster-HW-MLI-26/
 
 | Этап | Что сделать | Готово, когда |
 |---|---|---|
-| 0 | Уточнить версии `dagster` / `dagster-dbt` / `dagster-dlt` (Context7); вынести путь `settings.yml` в параметр у `doctor.py` и `check_hw.py` в `dbt/` | `dbt/` тесты зелёные |
+| 0 ✅ | Уточнить версии `dagster` / `dagster-dbt` / `dagster-dlt` (Context7); вынести путь `settings.yml` в параметр у `doctor.py` и `check_hw.py` в `dbt/` | `dbt/` тесты зелёные |
 | 1 | Эталон уровня 6–7: seeds + dbt-ассеты + checks + schedule + README | `dagster asset materialize --select '*'` зелёный |
 | 2 | `Dagster/` toolchain: Makefile, config, `inspect_defs.py`, критерии 1–6, фикстуры `empty` и `tier7` | `make check` на эталоне `tier-7` → 7, на `empty` → 0 |
 | 3 | Эталон 8–9: automation, freshness, Telegram, resources по окружениям, pytest, pre-commit, CI | CI зелёный |
@@ -127,3 +127,23 @@ Dagster-HW-MLI-26/
 - **Разные раскладки проектов студентов** (`dg`-проект, модуль, `workspace.yaml`): `wizard.py` спрашивает и пишет `HW_DAGSTER_MODULE`; `inspect_defs` поддерживает все три варианта.
 - **Время полной материализации:** `--no-run` для быстрого прогона, таймауты — в `settings.yml`.
 - **Нет сети** (kagglehub, GitHub): как в `dbt/` — ошибка в поле `error` критерия, без падения всего прогона.
+
+## 10. Версии (этап 0)
+
+Сверено 2026-10-16: API — по документации Dagster через Context7, номера версий — с PyPI.
+
+| Пакет | Версия | Заметка |
+|---|---|---|
+| `dagster`, `dagster-webserver` | 1.13.26 | Python 3.10–3.14 |
+| `dagster-dbt` | 0.29.26 | жёстко `dagster==1.13.26`; `dbt-core>=1.7,<1.13`; Python **<3.14** — общий потолок для `Dagster/` |
+| `dagster-dlt` | 0.29.26 | `dlt` ставится отдельно |
+| `dlt` | 1.31.0 | `dlt[duckdb]` |
+| `dbt-core` / `dbt-duckdb` | 1.12.6 / 1.11.0 | в `dbt/config/requirements.txt` нижние границы `>=1.8` — для `Dagster/` закрепить `~=` |
+
+Что подтверждено документацией:
+
+- **dbt:** `@dbt_assets(manifest=...)` + `DbtCliResource` (`yield from dbt.cli(["build"], context=context).stream()`). `load_assets_from_dbt_manifest` и `dbt_cli_resource` удалены. dbt-тесты становятся asset checks (singular-тесту нужен `meta.dagster.ref`).
+- **dlt:** `@dlt_assets(dlt_source=..., dlt_pipeline=...)` + `DagsterDltResource` (`yield from dlt.run(context=context)`).
+- **Автоматизация:** `AutomationCondition.eager()` (можно задавать и на `define_asset_job`); блокирующая проверка — аргумент `blocking` у `@asset_check`.
+- **Свежесть:** в документации API есть класс `FreshnessPolicy` (`time_window`, `cron`), в dagster-dbt политика задаётся через `meta.dagster.freshness_policy`. Точные сигнатуры проверить при реализации этапа 1 на установленной 1.13.26 — публичный API здесь менялся.
+- **Не проверено:** `dg` / components (`DbtProjectComponent`) — в эталоне этап 1 начинаем с `@dbt_assets`, как самого стабильного варианта.
