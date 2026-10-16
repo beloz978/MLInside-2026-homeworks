@@ -1,4 +1,4 @@
-"""Keypress tests for quiz.py: uv run --with questionary --with pyyaml --with pytest pytest quizes/test_quiz.py"""
+"""Keypress tests for quiz.py: uv run --with questionary --with pyyaml --with pytest pytest quizes/src/test_quiz.py"""
 import sys
 from pathlib import Path
 

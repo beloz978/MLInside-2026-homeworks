@@ -1,8 +1,8 @@
 """quizes/<name>.md → quizes/<name>.yaml (questions, options, correct, hint, explanation).
 
-Usage: python quizes/md2yaml.py quizes/test-4-dagster.md
-       python quizes/md2yaml.py quizes/test-3-dbt-review.md                            # test + reserve, review skipped
-       python quizes/md2yaml.py quizes/test-3-dbt-review.md "## Переписанные вопросы"  # only that section
+Usage: python quizes/src/md2yaml.py quizes/quiz-4-dagster.md
+       python quizes/src/md2yaml.py quizes/quiz-3-dbt-review.md                            # test + reserve, review skipped
+       python quizes/src/md2yaml.py quizes/quiz-3-dbt-review.md "## Переписанные вопросы"  # only that section
 """
 import re
 import sys
@@ -75,7 +75,7 @@ def self_check(md: str, questions: list[dict], settings: dict) -> None:
         d = q["difficulty"]
         assert d is None or d in settings["difficulties"], f"{q['id']}: unknown difficulty {d!r}"
         if d in settings["hint_difficulties"]:
-            assert q["hint"], f"{q['id']}: «{d}» needs a «Подсказка:» line (quizes/settings.yml)"
+            assert q["hint"], f"{q['id']}: «{d}» needs a «Подсказка:» line (quizes/src/settings.yml)"
     for word, prefix in ANSWERS.items():
         m = re.search(rf'^(?:<a id="[^"]*"></a>)?{prefix} (.*)$', md, re.M)
         if not m:

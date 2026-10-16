@@ -1,8 +1,8 @@
 """Interactive terminal quiz from quizes/<name>.yaml (made by md2yaml.py).
 
-Usage: uv run --with questionary --with pyyaml python quizes/quiz.py quizes/test-4-dagster.yaml
+Usage: uv run --with questionary --with pyyaml python quizes/src/quiz.py quizes/quiz-4-dagster.yaml
 Only the main section is asked; reserve questions are skipped.
-Keys: digits 1–9 pick (single) or toggle (multi) an option, Enter answers, the hint key (quizes/settings.yml) shows the hint.
+Keys: digits 1–9 pick (single) or toggle (multi) an option, Enter answers, the hint key (quizes/src/settings.yml) shows the hint.
 """
 import sys
 from pathlib import Path
