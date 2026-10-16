@@ -195,3 +195,20 @@ Dagster-HW-MLI-26/
 - Реальная проверка GitHub (`pr_report`) для Dagster не прогонялась: репозитория эталона ещё нет, тесты подставляют отчёт синтетически.
 - `--no-run` читает данные из DuckDB и `HW_DAGSTER_HOME`, если он задан; без него критерии 4 и 5 по запуску не пройдут.
 - Не сделано: `wizard.py` и `MANUAL.md` (этап 6), `make data` (данные студент берёт тем же `fetch_olist_seeds.py` из `dbt/`).
+
+## 13. Этап 3: подготовка (начат, код не писался)
+
+Проверено на установленных dagster 1.13.26 / Context7:
+
+- **Freshness:** `dg.FreshnessPolicy.time_window(fail_window=timedelta, warn_window=timedelta | None)` (окна ≥ 60 с, warn < fail) или `FreshnessPolicy.cron(...)`; ставится через `AssetSpec.replace_attributes(freshness_policy=...)` в `DagsterDbtTranslator.get_asset_spec`. В `dagster.yaml` — `freshness: enabled: true`.
+- **Automation:** `AssetSpec.replace_attributes(automation_condition=dg.AutomationCondition.eager())` на витринах.
+- **Блокирующий check:** аргумент `blocking=True` у `@dg.asset_check`; retry — `RetryPolicy` у ассета/op.
+- **Алерт:** `@dg.run_failure_sensor` (`RunFailureSensorContext`), только побочный эффект (Telegram Bot API через ресурс с `EnvVar`); тест — `build_run_status_sensor_context(...).for_run_failure()`.
+- **Postgres для prod:** `dagster.yaml` с `run_storage` / `event_log_storage` / `schedule_storage` из `dagster_postgres` (нужен пакет `dagster-postgres`).
+
+**Общий Postgres `~/.apps/pg`:** порт **5433**, `localhost`, у проекта своя БД и роль (`just project-add <имя>` в `~/.apps/pg`), пароль — в `~/.pgpass`
+(в `.env` и репозитории паролей нет; libpq/psycopg берут его из `~/.pgpass` сами). На 2026-10-16 из сессии `pg_isready -p 5433` → «no attempt»
+(сервер не запущен или песочница не пускает) — перед этапом 3 нужно `just up` и `just project-add dagster_hw` (это делает пользователь: команда пишет в `~/.pgpass`).
+
+Порядок этапа 3: снимок текущего эталона как `tier-7` → automation + freshness → блокирующий check + retry → ресурсы по `DAGSTER_ENV` (prod = Postgres)
+→ Telegram-сенсор + тесты → `.pre-commit-config.yaml` (ruff, sqlfluff) → `.github/workflows/ci.yml` (локально: ruff, sqlfluff, `dagster definitions validate`, pytest).
