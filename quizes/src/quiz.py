@@ -3,6 +3,8 @@
 Usage: uv run --with questionary --with pyyaml python quizes/src/quiz.py quizes/quiz-4-dagster [--lang ru|en]
 The language is asked at start when the quiz has several (quiz.<lang>.md) and --lang is not given.
 Only the main section is asked; reserve questions are skipped.
+Modes (quiz.mode): immediate — explanation and a ChatGPT/Claude prompt after every answer; exam — nothing until the end,
+then a results table, explanations and prompts for the failed questions. Prompts are also saved next to the log.
 Keys: digits 1–9 pick (single) or toggle (multi) an option, Enter answers, the hint key shows the hint,
 the pause key pauses the timer (settings: quizes/src/settings.yml + <quiz_dir>/settings.yml).
 Log: <quiz_dir>/<log.dir>/<yymmdd-HHMMSS>-<quiz>-<user>.jsonl — who/where at start, then every move, (un)choice, hint, pause, answer.
@@ -31,18 +33,22 @@ from settings import load_settings as load_merged, require
 SHOW_HINT = object()  # returned by a prompt when the hint key is pressed
 PAUSE = object()  # returned by a prompt when the pause key is pressed
 IDENTITY_MODES = ("os_git", "ask", "env")
+MODES = ("immediate", "exam")
 
 
 def load_settings(quiz_dir: Path) -> tuple[dict, dict, dict]:
     """(quiz, log, lang) sections of the merged settings; missing keys or bad values raise ValueError."""
     cfg = load_merged(quiz_dir)
-    require(cfg, *(f"quiz.{k}" for k in ("difficulties", "hint_difficulties", "hint_position", "hint_key", "pause_key")),
+    require(cfg, *(f"quiz.{k}" for k in ("difficulties", "hint_difficulties", "hint_position", "hint_key", "pause_key",
+                                           "mode", "hints_enabled")),
             *(f"log.{k}" for k in ("dir", "identity", "identity_env")), "lang")
     for code, L in cfg["lang"].items():
-        require(cfg, *(f"lang.{code}.{k}" for k in ("difficulties", "ui")))
+        require(cfg, *(f"lang.{code}.{k}" for k in ("difficulties", "ui", "prompt_failed")))
     quiz, log = cfg["quiz"], cfg["log"]
     if quiz["hint_position"] not in ("before", "after"):
         raise ValueError(f"{cfg['_files']}: quiz.hint_position must be before or after")
+    if quiz["mode"] not in MODES:
+        raise ValueError(f"{cfg['_files']}: quiz.mode must be one of {', '.join(MODES)}")
     if log["identity"] not in IDENTITY_MODES:
         raise ValueError(f"{cfg['_files']}: log.identity must be one of {', '.join(IDENTITY_MODES)}")
     return quiz, log, cfg["lang"]
@@ -77,6 +83,13 @@ class Log:
         self.path, self.f, self.t0 = path, open(path, "a", encoding="utf-8"), time.monotonic()
         self.q: str | None = None
         self.paused_ms = 0
+
+    def write_prompt(self, n: int, text: str) -> Path:
+        """Append the prompt of a failed question to <log>-prompts.md (next to the JSONL log)."""
+        path = self.path.with_name(self.path.stem + "-prompts.md")
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(f"## {n} ({self.q})\n\n```text\n{text.rstrip()}\n```\n\n")
+        return path
 
     def emit(self, event: str, **fields) -> None:
         line = {"t": datetime.now().astimezone().isoformat(timespec="milliseconds"),
@@ -178,7 +191,8 @@ def add_hotkeys(question: questionary.Question, multi: bool, exits: dict, state:
 
 def hints_of(q: dict, settings: dict) -> list[str]:
     """Hints in the order to show them (light → detailed); none for difficulties outside hint_difficulties."""
-    return (q.get("hints") or []) if q.get("difficulty") in settings["hint_difficulties"] else []
+    ok = settings["hints_enabled"] and q.get("difficulty") in settings["hint_difficulties"]
+    return (q.get("hints") or []) if ok else []
 
 
 def prompt(q: dict, hints_shown: int, settings: dict, state: State, log: Log, **io) -> object:
@@ -205,7 +219,30 @@ def prompt(q: dict, hints_shown: int, settings: dict, state: State, log: Log, **
     return add_hotkeys(question, q["multi"], exits, state, log).unsafe_ask()
 
 
-def ask(q: dict, n: int, total: int, settings: dict, log: Log, **io) -> tuple[int, int]:
+def build_prompt(q: dict, picked: list[int], settings: dict) -> str:
+    """Copy-paste prompt for ChatGPT/Claude about a question answered not fully right (template: lang.<code>.prompt_failed)."""
+    meta = settings.get("meta") or {}
+    opts = q["options"]
+    return settings["prompt_failed"].format(
+        title=settings.get("title", ""), audience=meta.get("audience", ""), goal=meta.get("goal", ""),
+        topic=q.get("topic") or "-", question=q["text"],
+        options="\n".join(f"{i + 1}) {o['text']}" for i, o in enumerate(opts)),
+        picked="; ".join(f"{i + 1}) {opts[i]['text']}" for i in sorted(picked)) or "-",
+        correct="; ".join(f"{i + 1}) {o['text']}" for i, o in enumerate(opts) if o["correct"]),
+        hints=" / ".join(q.get("hints") or []) or "-", explanation=q.get("explanation") or "-").rstrip()
+
+
+def feedback(q: dict, got: int, best: int, settings: dict, prompt_text: str | None) -> None:
+    """Verdict, explanation and (for a failed question) the prompt, as printed after an answer or in the exam report."""
+    right = "; ".join(o["text"] for o in q["options"] if o["correct"])
+    print(f"{'✅' if got == best else '❌'} {got}/{best}. {tr(settings, 'right', right=right)}")
+    if q.get("explanation"):
+        print(tr(settings, "explanation", text=q["explanation"]))
+    if prompt_text:
+        print("\n" + tr(settings, "prompt_header") + "\n" + "-" * 60 + "\n" + prompt_text + "\n" + "-" * 60)
+
+
+def ask(q: dict, n: int, total: int, settings: dict, log: Log, results: list | None = None, **io) -> tuple[int, int]:
     shown_level = q["level"] + (f" · {q.get('difficulty_name') or q['difficulty']}" if q.get("difficulty") else "")
     print("\n" + tr(settings, "question", n=n, total=total, level=shown_level))
     log.q = q.get("id", str(n))
@@ -232,12 +269,35 @@ def ask(q: dict, n: int, total: int, settings: dict, log: Log, **io) -> tuple[in
     got, best = score(q, picked)
     log.emit("answer", picked=sorted(picked), correct=[i for i, o in enumerate(q["options"]) if o["correct"]],
              got=got, max=best, ms_since_question=state.ms(), paused_ms=state.paused_ms, hints_used=hints_shown,
-             n_toggles=state.toggles)
-    right = "; ".join(o["text"] for o in q["options"] if o["correct"])
-    print(f"{'✅' if got == best else '❌'} {got}/{best}. {tr(settings, 'right', right=right)}")
-    if q.get("explanation"):
-        print(tr(settings, "explanation", text=q["explanation"]))
+             n_toggles=state.toggles, mode=settings["mode"])
+    prompt_text = None
+    if got < best:
+        prompt_text = build_prompt(q, picked, settings)
+        path = log.write_prompt(n, prompt_text)
+        log.emit("prompt_generated", file=path.name, chars=len(prompt_text))
+    if settings["mode"] == "immediate":
+        feedback(q, got, best, settings, prompt_text)
+    else:
+        print(tr(settings, "accepted"))
+    if results is not None:
+        results.append({"n": n, "q": q, "got": got, "best": best, "prompt": prompt_text})
     return got, best
+
+
+def exam_report(results: list[dict], settings: dict) -> None:
+    """Exam mode: table of all answers, then explanation + prompt for every question not fully right."""
+    if not results:
+        return
+    print("\n" + tr(settings, "report_title"))
+    for r in results:
+        mark = "✅" if r["got"] == r["best"] else "❌"
+        print(tr(settings, "report_row", n=r["n"], mark=mark, got=r["got"], best=r["best"], topic=r["q"].get("topic") or ""))
+    wrong = [r for r in results if r["got"] < r["best"]]
+    if wrong:
+        print("\n" + tr(settings, "report_wrong"))
+    for r in wrong:
+        print("\n" + tr(settings, "report_question", n=r["n"], text=r["q"]["text"]))
+        feedback(r["q"], r["got"], r["best"], settings, r["prompt"])
 
 
 def choose_language(langs: list[str], wanted: str | None, lang_cfg: dict, **io) -> str:
@@ -260,7 +320,8 @@ def main() -> None:
     quiz_cfg, log_cfg, lang_cfg = load_settings(quiz_dir)
     lang = choose_language(raw["langs"], args.lang, lang_cfg)
     data = localize(raw, lang, quiz_cfg, lang_cfg[lang])
-    settings = {**quiz_cfg, "lang": lang, "ui": lang_cfg[lang]["ui"]}
+    settings = {**quiz_cfg, "lang": lang, "ui": lang_cfg[lang]["ui"], "prompt_failed": lang_cfg[lang]["prompt_failed"],
+                "title": data.get("title", ""), "meta": data["meta"]}
     questions = [q for q in data["questions"] if q.get("section", "main") == "main"]
     print(data.get("title", ""))
     meta = data["meta"]
@@ -273,19 +334,26 @@ def main() -> None:
     log = Log(log_dir / f"{datetime.now():%y%m%d-%H%M%S}-{quiz_dir.resolve().name}-{slug}.jsonl")
     log.emit("run_start", **who, quiz_file=str(quiz_file), lang=lang, cwd=os.getcwd(),
              repo_commit=git("rev-parse", "--short", "HEAD"), python=platform.python_version(),
-             platform=platform.platform(), n_questions=len(questions), meta=meta)
+             platform=platform.platform(), n_questions=len(questions), mode=settings["mode"], meta=meta)
     got = best = 0
+    results: list[dict] = []
     try:
         for n, q in enumerate(questions, 1):
-            g, b = ask(q, n, len(questions), settings, log)
+            g, b = ask(q, n, len(questions), settings, log, results)
             got, best = got + g, best + b
         end = "run_end"
     except (KeyboardInterrupt, EOFError):
         print("\n" + tr(settings, "interrupted"))
         end = "interrupted"
     log.q = None
-    log.emit(end, got=got, max=best, ms_total=int((time.monotonic() - log.t0) * 1000), paused_ms=log.paused_ms)
+    if settings["mode"] == "exam":
+        exam_report(results, settings)
+    log.emit(end, got=got, max=best, ms_total=int((time.monotonic() - log.t0) * 1000), paused_ms=log.paused_ms,
+             n_failed=sum(r["got"] < r["best"] for r in results))
     print("\n" + tr(settings, "total", got=got, best=best) + "\n" + tr(settings, "log", path=log.path.resolve()))
+    prompts = log.path.with_name(log.path.stem + "-prompts.md")
+    if prompts.exists():
+        print(tr(settings, "prompts", path=prompts.resolve()))
 
 
 # self-check of the scoring rule

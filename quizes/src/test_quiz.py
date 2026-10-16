@@ -16,7 +16,9 @@ LRU = md2yaml.load_settings(Path(__file__).parent.parent / "quiz-4-dagster")["la
 
 QUIZ_DIR = Path(__file__).parent.parent / "quiz-4-dagster"
 UI = quiz.load_settings(Path(__file__).parent.parent / "quiz-4-dagster")[2]["ru"]["ui"]
-SETTINGS = {"hint_difficulties": ["средний"], "hint_position": "after", "hint_key": "h", "pause_key": "p", "ui": UI}
+PROMPT = quiz.load_settings(Path(__file__).parent.parent / "quiz-4-dagster")[2]["ru"]["prompt_failed"]
+SETTINGS = {"hint_difficulties": ["средний"], "hint_position": "after", "hint_key": "h", "pause_key": "p", "ui": UI,
+            "mode": "immediate", "hints_enabled": True, "prompt_failed": PROMPT, "title": "T", "meta": {"audience": "студенты", "goal": "цель"}}
 SINGLE = {"text": "Q?", "level": "🟨", "difficulty": "средний", "multi": False, "hints": ["подумай"],
           "explanation": "e", "options": [{"text": t, "correct": t == "b"} for t in "abcd"]}
 MULTI = {**SINGLE, "multi": True, "options": [{"text": t, "correct": t in "ac"} for t in "abcd"]}
@@ -71,9 +73,9 @@ def test_log_choose_unchoose_hint_answer():
     assert run(MULTI, "232h\r") == (1, 2)  # 3 (correct «c») stays chosen across the hint redraw
     ev = events()
     names = [e["event"] for e in ev if e["event"] != "move"]
-    assert names == ["question_shown", "choose", "choose", "unchoose", "hint_shown", "answer"]
+    assert names == ["question_shown", "choose", "choose", "unchoose", "hint_shown", "answer", "prompt_generated"]
     assert [e.get("option") for e in ev if e["event"] in ("choose", "unchoose")] == [1, 2, 1]
-    ans = ev[-1]
+    ans = next(e for e in ev if e["event"] == "answer")
     assert ans["picked"] == [2] and ans["hints_used"] == 1 and ans["n_toggles"] == 3
     assert [e["ms"] for e in ev] == sorted(e["ms"] for e in ev)
 
@@ -173,3 +175,38 @@ def test_english_ui_strings(capsys):
     assert run(SINGLE, "2\r", settings) == (1, 1)
     out = capsys.readouterr().out
     assert "Question 1/1" in out and "Correct: b" in out and "Explanation: e" in out
+
+
+def test_failed_question_gets_prompt_and_file(capsys):
+    assert run(SINGLE, "3\r") == (0, 1)  # picked c, right is b
+    out = capsys.readouterr().out
+    assert "Промпт для ChatGPT" in out and "Я выбрал(а): 3) c" in out and "Правильный ответ: 2) b" in out
+    assert "студенты" in out and "T»" in out
+    ev = events()
+    assert ev[-1]["event"] == "prompt_generated" and ev[-1]["file"].endswith("-prompts.md")
+    text = (LOG.path.with_name(LOG.path.stem + "-prompts.md")).read_text(encoding="utf-8")
+    assert "Вопрос:\nQ?" in text and text.count("```") == 2
+
+
+def test_right_answer_has_no_prompt(capsys):
+    assert run(SINGLE, "2\r") == (1, 1)
+    assert "Промпт для ChatGPT" not in capsys.readouterr().out
+    assert not LOG.path.with_name(LOG.path.stem + "-prompts.md").exists()
+
+
+def test_exam_mode_prints_nothing_until_report(capsys):
+    exam = {**SETTINGS, "mode": "exam"}
+    results = []
+    with create_pipe_input() as inp:
+        inp.send_text("3\r")
+        quiz.ask({**SINGLE, "topic": "Тема1"}, 1, 1, exam, LOG, results, input=inp, output=DummyOutput())
+    before = capsys.readouterr().out
+    assert "Верно" not in before and "Разбор" not in before and "Промпт" not in before and "Ответ принят" in before
+    quiz.exam_report(results, exam)
+    after = capsys.readouterr().out
+    assert "❌ 0/1" in after and "Тема1" in after and "Верно: b" in after and "Я выбрал(а): 3) c" in after
+
+
+def test_hints_can_be_disabled():
+    assert run(SINGLE, "h2\r", {**SETTINGS, "hints_enabled": False}) == (1, 1)
+    assert not [e for e in events() if e["event"] == "hint_shown"]
