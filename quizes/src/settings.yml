@@ -8,3 +8,14 @@ quiz:
   hint_position: after
   # клавиша, по которой quiz.py показывает подсказку (варианты ответа — цифрами 1–9)
   hint_key: h
+  # клавиша паузы: таймер вопроса останавливается, продолжить — любой клавишей
+  pause_key: p
+
+# Лог прохождения: один JSONL-файл на запуск, <dir>/<yymmdd-HHMMSS>-<тест>-<пользователь>.jsonl (в git)
+log:
+  # каталог логов относительно quizes/src/
+  dir: ../logs
+  # кто проходит: os_git — пользователь ОС (+ git user.name/email), ask — спросить имя при старте,
+  # env — взять из переменной identity_env (без неё — ошибка)
+  identity: os_git
+  identity_env: QUIZ_USER
