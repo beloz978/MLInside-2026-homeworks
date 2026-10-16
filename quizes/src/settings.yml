@@ -22,3 +22,73 @@ log:
   # env — взять из переменной identity_env (без неё — ошибка)
   identity: os_git
   identity_env: QUIZ_USER
+
+# Языки теста: quiz.<язык>.md. Метки для разбора md и строки интерфейса quiz.py.
+# difficulties — в том же порядке, что quiz.difficulties (по индексу сопоставляются уровни).
+lang:
+  ru:
+    question: Вопрос
+    reserve: Резерв
+    hint: "Подсказка:"
+    explanation: "Разбор:"
+    topic: "Тема:"
+    answers: "Ответы:"
+    reserve_answers: "Ответы резерва:"
+    multi: "Несколько вариантов"
+    option_letters: "АБВГ"
+    difficulties: [простой, средний, сложный]
+    ui:
+      language: "Язык / Language:"
+      question: "Вопрос {n}/{total} · {level}"
+      keys_pick: "цифры — выбрать"
+      keys_toggle: "цифры — отметить, пробел тоже"
+      keys_answer: "Enter — ответить"
+      keys_hint: "{key} — подсказка"
+      keys_hint_n: "{key} — подсказка {i}/{n}"
+      keys_pause: "{key} — пауза"
+      hint: "  • 💡 {text}"
+      hint_n: "  • 💡 {i}/{n} {text}"
+      pause: "⏸ Пауза — любая клавиша, чтобы продолжить"
+      right: "Верно: {right}"
+      explanation: "Разбор: {text}"
+      total: "Итог: {got} из {best}"
+      log: "Лог: {path}"
+      interrupted: "Прервано."
+      for_whom: "Для кого: {text}"
+      goal: "Цель: {text}"
+      duration: "Время: ~{n} мин"
+      ask_name: "Имя / ник:"
+      name_required: "Введите имя"
+  en:
+    question: Question
+    reserve: Reserve
+    hint: "Hint:"
+    explanation: "Explanation:"
+    topic: "Topic:"
+    answers: "Answers:"
+    reserve_answers: "Reserve answers:"
+    multi: "Select all that apply"
+    option_letters: "ABCD"
+    difficulties: [easy, medium, hard]
+    ui:
+      language: "Язык / Language:"
+      question: "Question {n}/{total} · {level}"
+      keys_pick: "digits — choose"
+      keys_toggle: "digits — toggle, space too"
+      keys_answer: "Enter — answer"
+      keys_hint: "{key} — hint"
+      keys_hint_n: "{key} — hint {i}/{n}"
+      keys_pause: "{key} — pause"
+      hint: "  • 💡 {text}"
+      hint_n: "  • 💡 {i}/{n} {text}"
+      pause: "⏸ Paused — press any key to continue"
+      right: "Correct: {right}"
+      explanation: "Explanation: {text}"
+      total: "Score: {got} of {best}"
+      log: "Log: {path}"
+      interrupted: "Interrupted."
+      for_whom: "Audience: {text}"
+      goal: "Goal: {text}"
+      duration: "Time: ~{n} min"
+      ask_name: "Name / nickname:"
+      name_required: "Please enter a name"

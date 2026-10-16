@@ -4,7 +4,7 @@
 
 | Файл | Что там |
 |---|---|
-| [`quiz.ru.md`](quiz.ru.md) | Текст теста (источник правды) |
+| [`quiz.ru.md`](quiz.ru.md), [`quiz.en.md`](quiz.en.md) | Текст теста на двух языках (источник правды) |
 | `quiz.yaml` | Сгенерированный из md файл для `quiz.py` |
 | [`settings.yml`](settings.yml) | Настройки этого теста поверх [базовых](../src/settings.yml) |
 | [`logs/`](logs/) | Логи прохождений (JSONL, в git) |
@@ -13,8 +13,8 @@
 ## Запуск
 
 ```bash
-just            # пройти тест (из этого каталога)
-just yaml       # quiz.ru.md → quiz.yaml
+just            # пройти тест (из этого каталога; just run en — сразу на английском)
+just yaml       # quiz.<язык>.md → quiz.yaml
 just logs       # последние логи
 make quiz 4     # то же из корня репозитория (make quiz-yaml 4 — собрать yaml)
 ```

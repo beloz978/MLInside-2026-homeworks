@@ -9,11 +9,11 @@ QUIZ_DIR := $(firstword $(wildcard quizes/quiz-$(NR)-*/))
 help: ## Список команд
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed -E 's/:.*## /\t/' | awk -F'\t' '{printf "  make %-10s %s\n", $$1, $$2}'
 
-quiz: ## Пройти тест: make quiz <номер>, например make quiz 4
+quiz: ## Пройти тест: make quiz <номер> [QUIZ_LANG=ru|en], например make quiz 4
 	@test -n "$(NR)" || { echo "Укажите номер: make quiz 4"; exit 1; }
 	@test -n "$(QUIZ_DIR)" || { echo "Нет каталога quizes/quiz-$(NR)-*/"; exit 1; }
 	@test -f $(QUIZ_DIR)quiz.yaml || { echo "Нет $(QUIZ_DIR)quiz.yaml (сделайте его: make quiz-yaml $(NR))"; exit 1; }
-	uv run --with questionary --with pyyaml python quizes/src/quiz.py $(QUIZ_DIR)
+	uv run --with questionary --with pyyaml python quizes/src/quiz.py $(QUIZ_DIR) $(if $(QUIZ_LANG),--lang $(QUIZ_LANG))
 
 quiz-yaml: ## md → yaml с самопроверкой: make quiz-yaml <номер> [SECTION="<заголовок раздела>"]
 	@test -n "$(NR)" || { echo "Укажите номер: make quiz-yaml 4"; exit 1; }

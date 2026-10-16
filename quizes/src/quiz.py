@@ -1,11 +1,13 @@
 """Interactive terminal quiz from quizes/<name>.yaml (made by md2yaml.py), with a JSONL event log per run.
 
-Usage: uv run --with questionary --with pyyaml python quizes/src/quiz.py quizes/quiz-4-dagster
+Usage: uv run --with questionary --with pyyaml python quizes/src/quiz.py quizes/quiz-4-dagster [--lang ru|en]
+The language is asked at start when the quiz has several (quiz.<lang>.md) and --lang is not given.
 Only the main section is asked; reserve questions are skipped.
 Keys: digits 1–9 pick (single) or toggle (multi) an option, Enter answers, the hint key shows the hint,
 the pause key pauses the timer (settings: quizes/src/settings.yml + <quiz_dir>/settings.yml).
 Log: <quiz_dir>/<log.dir>/<yymmdd-HHMMSS>-<quiz>-<user>.jsonl — who/where at start, then every move, (un)choice, hint, pause, answer.
 """
+import argparse
 import getpass
 import json
 import os
@@ -31,17 +33,40 @@ PAUSE = object()  # returned by a prompt when the pause key is pressed
 IDENTITY_MODES = ("os_git", "ask", "env")
 
 
-def load_settings(quiz_dir: Path) -> tuple[dict, dict]:
-    """(quiz, log) sections of the merged settings; missing keys or bad values raise ValueError."""
+def load_settings(quiz_dir: Path) -> tuple[dict, dict, dict]:
+    """(quiz, log, lang) sections of the merged settings; missing keys or bad values raise ValueError."""
     cfg = load_merged(quiz_dir)
-    require(cfg, *(f"quiz.{k}" for k in ("hint_difficulties", "hint_position", "hint_key", "pause_key")),
-            *(f"log.{k}" for k in ("dir", "identity", "identity_env")))
+    require(cfg, *(f"quiz.{k}" for k in ("difficulties", "hint_difficulties", "hint_position", "hint_key", "pause_key")),
+            *(f"log.{k}" for k in ("dir", "identity", "identity_env")), "lang")
+    for code, L in cfg["lang"].items():
+        require(cfg, *(f"lang.{code}.{k}" for k in ("difficulties", "ui")))
     quiz, log = cfg["quiz"], cfg["log"]
     if quiz["hint_position"] not in ("before", "after"):
         raise ValueError(f"{cfg['_files']}: quiz.hint_position must be before or after")
     if log["identity"] not in IDENTITY_MODES:
         raise ValueError(f"{cfg['_files']}: log.identity must be one of {', '.join(IDENTITY_MODES)}")
-    return quiz, log
+    return quiz, log, cfg["lang"]
+
+
+def localize(data: dict, lang: str, quiz: dict, L: dict) -> dict:
+    """Flat single-language copy of a bilingual quiz.yaml: every {ru, en} field becomes its `lang` value."""
+    def pick(v):
+        return v[lang] if isinstance(v, dict) and lang in v else v
+    out = {**data, "title": pick(data["title"]), "meta": pick(data.get("meta") or {}), "questions": []}
+    for q in data["questions"]:
+        d = q.get("difficulty")
+        out["questions"].append({
+            **q, "level": pick(q["level"]), "topic": pick(q.get("topic")), "text": pick(q["text"]),
+            "hints": pick(q.get("hints")) or [], "explanation": pick(q.get("explanation")),
+            "difficulty_name": L["difficulties"][quiz["difficulties"].index(d)] if d else None,
+            "options": [{**o, "text": pick(o["text"])} for o in q["options"]],
+        })
+    return out
+
+
+def tr(settings: dict, name: str, /, **kw) -> str:
+    """Interface string `name` of the chosen language (settings["ui"], from lang.<code>.ui)."""
+    return settings["ui"][name].format(**kw)
 
 
 class Log:
@@ -79,12 +104,13 @@ def git(*args: str) -> str:
     return r.stdout.strip() if r.returncode == 0 else ""
 
 
-def identity(log_cfg: dict, **io) -> dict:
+def identity(log_cfg: dict, ui: dict | None = None, **io) -> dict:
     """Who takes the quiz; log.identity picks how the user name is obtained."""
     who = {"identity_mode": log_cfg["identity"], "os_user": getpass.getuser(), "host": socket.gethostname(),
            "git_name": git("config", "user.name"), "git_email": git("config", "user.email")}
     if log_cfg["identity"] == "ask":
-        who["user"] = questionary.text("Имя / ник:", validate=lambda s: bool(s.strip()) or "Введите имя",
+        ui = ui or {"ask_name": "Name:", "name_required": "Enter a name"}
+        who["user"] = questionary.text(ui["ask_name"], validate=lambda s: bool(s.strip()) or ui["name_required"],
                                        **io).unsafe_ask().strip()
     elif log_cfg["identity"] == "env":
         var = log_cfg["identity_env"]
@@ -152,25 +178,27 @@ def add_hotkeys(question: questionary.Question, multi: bool, exits: dict, state:
 
 def hints_of(q: dict, settings: dict) -> list[str]:
     """Hints in the order to show them (light → detailed); none for difficulties outside hint_difficulties."""
-    return q.get("hints") or [] if q.get("difficulty") in settings["hint_difficulties"] else []
+    return (q.get("hints") or []) if q.get("difficulty") in settings["hint_difficulties"] else []
 
 
 def prompt(q: dict, hints_shown: int, settings: dict, state: State, log: Log, **io) -> object:
     hints = hints_of(q, settings)
-    bullets = "\n".join(f"  • 💡 {i}/{len(hints)} {h}" for i, h in enumerate(hints[:hints_shown], 1)) if len(hints) > 1 \
-        else "\n".join(f"  • 💡 {h}" for h in hints[:hints_shown])
+    bullets = "\n".join(tr(settings, "hint_n", i=i, n=len(hints), text=h) if len(hints) > 1 else tr(settings, "hint", text=h)
+                        for i, h in enumerate(hints[:hints_shown], 1))
     message = q["text"]
     if bullets:
         if settings["hint_position"] == "before":
             print(bullets)
         else:
             message = f"{message}\n{bullets}"
-    keys = "цифры — " + ("отметить, пробел тоже" if q["multi"] else "выбрать") + ", Enter — ответить"
+    keys = [tr(settings, "keys_toggle" if q["multi"] else "keys_pick"), tr(settings, "keys_answer")]
     exits = {settings["pause_key"]: PAUSE}
     if hints_shown < len(hints):
-        keys += f", {settings['hint_key']} — подсказка" + (f" {hints_shown + 1}/{len(hints)}" if len(hints) > 1 else "")
+        keys.append(tr(settings, "keys_hint_n", key=settings["hint_key"], i=hints_shown + 1, n=len(hints)) if len(hints) > 1
+                    else tr(settings, "keys_hint", key=settings["hint_key"]))
         exits[settings["hint_key"]] = SHOW_HINT
-    keys += f", {settings['pause_key']} — пауза"
+    keys.append(tr(settings, "keys_pause", key=settings["pause_key"]))
+    keys = ", ".join(keys)
     choices = [questionary.Choice(f"{i + 1}) {o['text']}", value=i) for i, o in enumerate(q["options"])]
     factory = questionary.checkbox if q["multi"] else questionary.select
     question = factory(message, choices=choices, instruction=f"({keys})", **io)
@@ -178,7 +206,8 @@ def prompt(q: dict, hints_shown: int, settings: dict, state: State, log: Log, **
 
 
 def ask(q: dict, n: int, total: int, settings: dict, log: Log, **io) -> tuple[int, int]:
-    print(f"\nВопрос {n}/{total} · {q['level']}" + (f" · {q['difficulty']}" if q.get("difficulty") else ""))
+    shown_level = q["level"] + (f" · {q.get('difficulty_name') or q['difficulty']}" if q.get("difficulty") else "")
+    print("\n" + tr(settings, "question", n=n, total=total, level=shown_level))
     log.q = q.get("id", str(n))
     n_hints = len(hints_of(q, settings))
     log.emit("question_shown", n=n, level=q["level"], difficulty=q.get("difficulty"), multi=q["multi"],
@@ -192,7 +221,7 @@ def ask(q: dict, n: int, total: int, settings: dict, log: Log, **io) -> tuple[in
         elif answer is PAUSE:
             log.emit("pause")
             p0 = time.monotonic()
-            questionary.press_any_key_to_continue("⏸ Пауза — любая клавиша, чтобы продолжить", **io).unsafe_ask()
+            questionary.press_any_key_to_continue(tr(settings, "pause"), **io).unsafe_ask()
             paused = int((time.monotonic() - p0) * 1000)
             state.paused_ms += paused
             log.paused_ms += paused
@@ -205,28 +234,46 @@ def ask(q: dict, n: int, total: int, settings: dict, log: Log, **io) -> tuple[in
              got=got, max=best, ms_since_question=state.ms(), paused_ms=state.paused_ms, hints_used=hints_shown,
              n_toggles=state.toggles)
     right = "; ".join(o["text"] for o in q["options"] if o["correct"])
-    print(f"{'✅' if got == best else '❌'} {got}/{best}. Верно: {right}")
+    print(f"{'✅' if got == best else '❌'} {got}/{best}. {tr(settings, 'right', right=right)}")
     if q.get("explanation"):
-        print(f"Разбор: {q['explanation']}")
+        print(tr(settings, "explanation", text=q["explanation"]))
     return got, best
 
 
+def choose_language(langs: list[str], wanted: str | None, lang_cfg: dict, **io) -> str:
+    if wanted:
+        if wanted not in langs:
+            sys.exit(f"--lang {wanted}: this quiz has only {', '.join(langs)}")
+        return wanted
+    if len(langs) == 1:
+        return langs[0]
+    return questionary.select(lang_cfg[langs[0]]["ui"]["language"], choices=langs, **io).unsafe_ask()
+
+
 def main() -> None:
-    quiz_dir = Path(sys.argv[1])
-    quiz_file = quiz_dir / "quiz.yaml"
-    data = yaml.safe_load(quiz_file.read_text(encoding="utf-8"))
+    ap = argparse.ArgumentParser(description="Interactive quiz")
+    ap.add_argument("quiz_dir", type=Path)
+    ap.add_argument("--lang")
+    args = ap.parse_args()
+    quiz_dir, quiz_file = args.quiz_dir, args.quiz_dir / "quiz.yaml"
+    raw = yaml.safe_load(quiz_file.read_text(encoding="utf-8"))
+    quiz_cfg, log_cfg, lang_cfg = load_settings(quiz_dir)
+    lang = choose_language(raw["langs"], args.lang, lang_cfg)
+    data = localize(raw, lang, quiz_cfg, lang_cfg[lang])
+    settings = {**quiz_cfg, "lang": lang, "ui": lang_cfg[lang]["ui"]}
     questions = [q for q in data["questions"] if q.get("section", "main") == "main"]
-    settings, log_cfg = load_settings(quiz_dir)
     print(data.get("title", ""))
-    meta = data.get("meta") or {}
+    meta = data["meta"]
     if meta:
-        print(f"Для кого: {meta['audience']}\nЦель: {meta['goal']}" + (f"\nВремя: ~{meta['duration_min']} мин" if meta.get("duration_min") else ""))
-    who = identity(log_cfg)
+        print(tr(settings, "for_whom", text=meta["audience"]) + "\n" + tr(settings, "goal", text=meta["goal"])
+              + (("\n" + tr(settings, "duration", n=meta["duration_min"])) if meta.get("duration_min") else ""))
+    who = identity(log_cfg, settings["ui"])
     slug = re.sub(r"[^\w.-]+", "_", who["user"]) or "user"
     log_dir = quiz_dir / log_cfg["dir"]  # relative to the quiz dir
     log = Log(log_dir / f"{datetime.now():%y%m%d-%H%M%S}-{quiz_dir.resolve().name}-{slug}.jsonl")
-    log.emit("run_start", **who, quiz_file=str(quiz_file), cwd=os.getcwd(), repo_commit=git("rev-parse", "--short", "HEAD"),
-             python=platform.python_version(), platform=platform.platform(), n_questions=len(questions), meta=meta)
+    log.emit("run_start", **who, quiz_file=str(quiz_file), lang=lang, cwd=os.getcwd(),
+             repo_commit=git("rev-parse", "--short", "HEAD"), python=platform.python_version(),
+             platform=platform.platform(), n_questions=len(questions), meta=meta)
     got = best = 0
     try:
         for n, q in enumerate(questions, 1):
@@ -234,11 +281,11 @@ def main() -> None:
             got, best = got + g, best + b
         end = "run_end"
     except (KeyboardInterrupt, EOFError):
-        print("\nПрервано.")
+        print("\n" + tr(settings, "interrupted"))
         end = "interrupted"
     log.q = None
     log.emit(end, got=got, max=best, ms_total=int((time.monotonic() - log.t0) * 1000), paused_ms=log.paused_ms)
-    print(f"\nИтог: {got} из {best}\nЛог: {log.path.resolve()}")
+    print("\n" + tr(settings, "total", got=got, best=best) + "\n" + tr(settings, "log", path=log.path.resolve()))
 
 
 # self-check of the scoring rule

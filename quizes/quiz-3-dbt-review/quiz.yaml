@@ -1,290 +1,584 @@
-title: Тест 3. Трансформация данных и витрины с dbt
+langs:
+- ru
+- en
+title:
+  ru: Тест 3. Трансформация данных и витрины с dbt
+  en: Quiz 3. Data transformation and marts with dbt
 meta:
-  audience: Студенты курса MLInside 2026, прошедшие модуль «Трансформация» (SQL, основы хранилищ данных)
-  purpose: Проверить понимание dbt и подготовиться к ДЗ по dbt (самопроверка и контроль)
-  goal: Студент понимает роль dbt в ELT и выбирает материализацию, тест и приём моделирования под задачу — ref/source, инкрементальные модели, тесты данных, макросы, снапшоты
-  context: 'Тест после модуля «Трансформация: модели, тесты, материализации»; задание — dbt/ДЗ/ДЗ_dbt_Olist.md'
-  prerequisites: SQL, основы хранилищ данных (ClickHouse, DuckDB)
-  duration_min: 20
+  ru:
+    audience: Студенты курса MLInside 2026, прошедшие модуль «Трансформация» (SQL, основы хранилищ данных)
+    purpose: Проверить понимание dbt и подготовиться к ДЗ по dbt (самопроверка и контроль)
+    goal: Студент понимает роль dbt в ELT и выбирает материализацию, тест и приём моделирования под задачу — ref/source, инкрементальные модели, тесты данных, макросы, снапшоты
+    context: 'Тест после модуля «Трансформация: модели, тесты, материализации»; задание — dbt/ДЗ/ДЗ_dbt_Olist.md'
+    prerequisites: SQL, основы хранилищ данных (ClickHouse, DuckDB)
+    duration_min: 20
+  en:
+    audience: MLInside 2026 students who have completed the Transformation module (SQL, data warehouse basics)
+    purpose: Check understanding of dbt and get ready for the dbt homework (self-check and assessment)
+    goal: 'The student understands the role of dbt in ELT and picks the materialization, test and modeling technique for a task: ref/source, incremental models, data tests, macros, snapshots'
+    context: 'Quiz after the module «Transformation: models, tests, materializations»; homework: dbt/ДЗ/ДЗ_dbt_Olist.md'
+    prerequisites: SQL, data warehouse basics (ClickHouse, DuckDB)
+    duration_min: 20
 questions:
 - id: q1
   section: main
-  level: 🟩 знание
-  difficulty: простой
-  text: Какую часть ETL/ELT реализует dbt?
   multi: false
-  topic: Роль dbt в ELT
+  difficulty: простой
+  level:
+    ru: 🟩 знание
+    en: 🟩 knowledge
+  topic:
+    ru: Роль dbt в ELT
+    en: The role of dbt in ELT
+  text:
+    ru: Какую часть ETL/ELT реализует dbt?
+    en: Which part of ETL/ELT does dbt implement?
   options:
-  - text: Extract
+  - text:
+      ru: Extract
+      en: Extract
     correct: false
-  - text: Transform
+  - text:
+      ru: Transform
+      en: Transform
     correct: true
-  - text: Load
+  - text:
+      ru: Load
+      en: Load
     correct: false
-  - text: Extract + Load
+  - text:
+      ru: Extract + Load
+      en: Extract + Load
     correct: false
-  hints: []
-  explanation: 'dbt работает уже внутри хранилища с загруженными данными: он превращает raw-таблицы в модели и витрины SQL-запросами, а извлекать и загружать данные не умеет — для этого нужны отдельные инструменты (Airbyte, dlt, свои скрипты).'
+  hints:
+    ru: []
+    en: []
+  explanation:
+    ru: 'dbt работает уже внутри хранилища с загруженными данными: он превращает raw-таблицы в модели и витрины SQL-запросами, а извлекать и загружать данные не умеет — для этого нужны отдельные инструменты (Airbyte, dlt, свои скрипты).'
+    en: 'dbt works inside the warehouse, on data that is already loaded: it turns raw tables into models and marts with SQL queries, and it cannot extract or load data — separate tools are needed for that (Airbyte, dlt, your own scripts).'
 - id: q2
   section: main
-  level: 🟩 понимание
-  difficulty: простой
-  text: Что обычно лежит в файле модели dbt и что с ним делает dbt?
   multi: false
-  topic: Модели
+  difficulty: простой
+  level:
+    ru: 🟩 понимание
+    en: 🟩 understanding
+  topic:
+    ru: Модели
+    en: Models
+  text:
+    ru: Что обычно лежит в файле модели dbt и что с ним делает dbt?
+    en: What does a dbt model file usually contain, and what does dbt do with it?
   options:
-  - text: Обученную ML-модель, которую dbt запускает на новых данных и сохраняет предсказания в таблицу
+  - text:
+      ru: Обученную ML-модель, которую dbt запускает на новых данных и сохраняет предсказания в таблицу
+      en: A trained ML model that dbt runs on new data and saves the predictions to a table
     correct: false
-  - text: Описание расписания, по которому dbt запускает сборку проекта и перезапускает упавшие задачи
+  - text:
+      ru: Описание расписания, по которому dbt запускает сборку проекта и перезапускает упавшие задачи
+      en: A schedule description by which dbt runs the project build and restarts failed tasks
     correct: false
-  - text: SELECT-запрос (SQL с Jinja), который dbt компилирует и превращает в view или table в хранилище
+  - text:
+      ru: SELECT-запрос (SQL с Jinja), который dbt компилирует и превращает в view или table в хранилище
+      en: A SELECT query (SQL with Jinja) that dbt compiles and turns into a view or table in the warehouse
     correct: true
-  - text: Скрипт загрузки, который dbt выполняет, чтобы скопировать данные из внешнего источника в хранилище
+  - text:
+      ru: Скрипт загрузки, который dbt выполняет, чтобы скопировать данные из внешнего источника в хранилище
+      en: A loading script that dbt executes to copy data from an external source into the warehouse
     correct: false
-  hints: []
-  explanation: модель — это SELECT в файле `.sql`; dbt компилирует Jinja, добавляет `CREATE ... AS` и выполняет в целевой базе. Обучать модели, планировать запуски и загружать данные dbt не умеет — для этого нужны другие инструменты. (Python-модели существуют, но поддерживаются не всеми адаптерами.)
+  hints:
+    ru: []
+    en: []
+  explanation:
+    ru: модель — это SELECT в файле `.sql`; dbt компилирует Jinja, добавляет `CREATE ... AS` и выполняет в целевой базе. Обучать модели, планировать запуски и загружать данные dbt не умеет — для этого нужны другие инструменты. (Python-модели существуют, но поддерживаются не всеми адаптерами.)
+    en: a model is a SELECT in a `.sql` file; dbt compiles the Jinja, adds `CREATE ... AS` and runs it in the target database. dbt cannot train models, schedule runs or load data — other tools are needed for that. (Python models exist but are not supported by every adapter.)
 - id: q3
   section: main
-  level: 🟩 понимание
-  difficulty: простой
-  text: Для чего в моделях используются `ref` и `source`?
   multi: false
-  topic: ref и source
+  difficulty: простой
+  level:
+    ru: 🟩 понимание
+    en: 🟩 understanding
+  topic:
+    ru: ref и source
+    en: ref and source
+  text:
+    ru: Для чего в моделях используются `ref` и `source`?
+    en: What are `ref` and `source` used for in models?
   options:
-  - text: Для задания расписания
+  - text:
+      ru: Для задания расписания
+      en: To set a schedule
     correct: false
-  - text: Для выбора способа материализации (view, table)
+  - text:
+      ru: Для выбора способа материализации (view, table)
+      en: To choose the materialization (view, table)
     correct: false
-  - text: Для хранения артефактов
+  - text:
+      ru: Для хранения артефактов
+      en: To store artifacts
     correct: false
-  - text: Для описания зависимостей между моделями и источниками
+  - text:
+      ru: Для описания зависимостей между моделями и источниками
+      en: To describe dependencies between models and sources
     correct: true
-  hints: []
-  explanation: '`ref(''stg_orders'')` ссылается на другую модель, `source(''olist'', ''orders'')` — на сырую таблицу, объявленную в YAML. По этим ссылкам dbt строит DAG и порядок сборки, а ещё подставляет схему и имя объекта в зависимости от таргета (dev, prod).'
+  hints:
+    ru: []
+    en: []
+  explanation:
+    ru: '`ref(''stg_orders'')` ссылается на другую модель, `source(''olist'', ''orders'')` — на сырую таблицу, объявленную в YAML. По этим ссылкам dbt строит DAG и порядок сборки, а ещё подставляет схему и имя объекта в зависимости от таргета (dev, prod).'
+    en: '`ref(''stg_orders'')` refers to another model, `source(''olist'', ''orders'')` to a raw table declared in YAML. From these references dbt builds the DAG and the build order, and also substitutes the schema and object name depending on the target (dev, prod).'
 - id: q4
   section: main
-  level: 🟨 применение
-  difficulty: сложный
-  text: Таблица заказов в ClickHouse — десятки миллионов строк, каждый день приходят новые и изменённые заказы с полем `updated_at`. Модель материализована как `incremental`. Какую стратегию выбрать, чтобы не было дублей заказов и не пересобиралась вся таблица?
   multi: false
-  topic: Материализации
+  difficulty: сложный
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: Материализации
+    en: Materializations
+  text:
+    ru: Таблица заказов в ClickHouse — десятки миллионов строк, каждый день приходят новые и изменённые заказы с полем `updated_at`. Модель материализована как `incremental`. Какую стратегию выбрать, чтобы не было дублей заказов и не пересобиралась вся таблица?
+    en: The orders table in ClickHouse has tens of millions of rows, and new and changed orders with an `updated_at` field arrive every day. The model is materialized as `incremental`. Which strategy should be chosen so there are no duplicate orders and the whole table is not rebuilt?
   options:
-  - text: '`delete+insert` с `unique_key=''order_id''` и фильтром по `updated_at` внутри `is_incremental()`: изменённые заказы удаляются и вставляются заново'
+  - text:
+      ru: '`delete+insert` с `unique_key=''order_id''` и фильтром по `updated_at` внутри `is_incremental()`: изменённые заказы удаляются и вставляются заново'
+      en: '`delete+insert` with `unique_key=''order_id''` and a filter on `updated_at` inside `is_incremental()`: changed orders are deleted and inserted again'
     correct: true
-  - text: '`append` с фильтром по `updated_at`: в таблицу дописываются новые и изменённые строки, а старые версии заказов остаются рядом с новыми'
+  - text:
+      ru: '`append` с фильтром по `updated_at`: в таблицу дописываются новые и изменённые строки, а старые версии заказов остаются рядом с новыми'
+      en: '`append` with a filter on `updated_at`: new and changed rows are appended, and old versions of orders stay next to the new ones'
     correct: false
-  - text: '`legacy` (стратегия по умолчанию) с `unique_key=''order_id''`: dbt обновляет только изменившиеся заказы и больше ничего не трогает в таблице'
+  - text:
+      ru: '`legacy` (стратегия по умолчанию) с `unique_key=''order_id''`: dbt обновляет только изменившиеся заказы и больше ничего не трогает в таблице'
+      en: '`legacy` (the default strategy) with `unique_key=''order_id''`: dbt updates only the changed orders and touches nothing else in the table'
     correct: false
-  - text: '`insert_overwrite` с `unique_key=''order_id''`: dbt перезаписывает строки с совпавшими ключами, не затрагивая остальные заказы'
+  - text:
+      ru: '`insert_overwrite` с `unique_key=''order_id''`: dbt перезаписывает строки с совпавшими ключами, не затрагивая остальные заказы'
+      en: '`insert_overwrite` with `unique_key=''order_id''`: dbt overwrites the rows with matching keys without touching the other orders'
     correct: false
   hints:
-  - 'В MergeTree нет дешёвого UPDATE строки: как тогда заменить изменённые заказы без дублей?'
-  explanation: в MergeTree нет дешёвого UPDATE строки, поэтому изменения применяют через удаление и повторную вставку. `delete+insert` (нужен lightweight delete, ClickHouse 22.8+) собирает изменённые строки во временную таблицу, удаляет заказы с такими `unique_key` и вставляет их заново. `append` только дописывает, поэтому изменённые заказы дублируются. `legacy` на каждом запуске копирует всю таблицу во временную и подменяет её — по стоимости это почти полная пересборка. `insert_overwrite` не поддерживает `unique_key` и заменяет партиции целиком. Ещё вариант — движок `ReplacingMergeTree`, но дубли тогда убирают при чтении (`FINAL`). После изменения логики модели её пересобирают с `--full-refresh`.
+    ru:
+    - 'В MergeTree нет дешёвого UPDATE строки: как тогда заменить изменённые заказы без дублей?'
+    en:
+    - 'MergeTree has no cheap row UPDATE: how else can changed orders be replaced without duplicates?'
+  explanation:
+    ru: в MergeTree нет дешёвого UPDATE строки, поэтому изменения применяют через удаление и повторную вставку. `delete+insert` (нужен lightweight delete, ClickHouse 22.8+) собирает изменённые строки во временную таблицу, удаляет заказы с такими `unique_key` и вставляет их заново. `append` только дописывает, поэтому изменённые заказы дублируются. `legacy` на каждом запуске копирует всю таблицу во временную и подменяет её — по стоимости это почти полная пересборка. `insert_overwrite` не поддерживает `unique_key` и заменяет партиции целиком. Ещё вариант — движок `ReplacingMergeTree`, но дубли тогда убирают при чтении (`FINAL`). После изменения логики модели её пересобирают с `--full-refresh`.
+    en: MergeTree has no cheap row UPDATE, so changes are applied by deleting and re-inserting. `delete+insert` (needs lightweight delete, ClickHouse 22.8+) collects the changed rows into a temporary table, deletes the orders with those `unique_key` values and inserts them again. `append` only appends, so changed orders are duplicated. On each run `legacy` copies the whole table into a temporary one and swaps it in — in cost this is almost a full rebuild. `insert_overwrite` does not support `unique_key` and replaces whole partitions. Another option is the `ReplacingMergeTree` engine, but then duplicates are removed at read time (`FINAL`). After the model logic changes, rebuild it with `--full-refresh`.
 - id: q5
   section: main
-  level: 🟨 применение
-  difficulty: средний
-  text: Какие проверки относятся к встроенным generic tests? Несколько вариантов.
   multi: true
-  topic: Тесты данных
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: Тесты данных
+    en: Data tests
+  text:
+    ru: Какие проверки относятся к встроенным generic tests? Несколько вариантов.
+    en: Which checks are built-in generic tests? Select all that apply.
   options:
-  - text: '`unique`'
+  - text:
+      ru: '`unique`'
+      en: '`unique`'
     correct: true
-  - text: SQL-файл в папке `tests/`, возвращающий строки с нарушениями
+  - text:
+      ru: SQL-файл в папке `tests/`, возвращающий строки с нарушениями
+      en: A SQL file in the `tests/` folder that returns rows with violations
     correct: false
-  - text: '`accepted_values`'
+  - text:
+      ru: '`accepted_values`'
+      en: '`accepted_values`'
     correct: true
-  - text: Блок `unit_tests:` с `given` и `expect`
+  - text:
+      ru: Блок `unit_tests:` с `given` и `expect`
+      en: A `unit_tests:` block with `given` and `expect`
     correct: false
-  - text: '`relationships`'
+  - text:
+      ru: '`relationships`'
+      en: '`relationships`'
     correct: true
   hints:
-  - Встроенные generic tests подключают в YAML к столбцу; остальные варианты — другие виды тестов.
-  explanation: встроенные generic tests — `not_null`, `unique`, `accepted_values`, `relationships`; их подключают в YAML к столбцу. SQL-файл в `tests/` — singular test, блок с входами и ожидаемым результатом — unit test (dbt 1.8+).
+    ru:
+    - Встроенные generic tests подключают в YAML к столбцу; остальные варианты — другие виды тестов.
+    en:
+    - Built-in generic tests are attached to a column in YAML; the other options are other kinds of tests.
+  explanation:
+    ru: встроенные generic tests — `not_null`, `unique`, `accepted_values`, `relationships`; их подключают в YAML к столбцу. SQL-файл в `tests/` — singular test, блок с входами и ожидаемым результатом — unit test (dbt 1.8+).
+    en: the built-in generic tests are `not_null`, `unique`, `accepted_values`, `relationships`; they are attached to a column in YAML. A SQL file in `tests/` is a singular test, and a block with inputs and an expected result is a unit test (dbt 1.8+).
 - id: q6
   section: main
-  level: 🟨 применение
-  difficulty: средний
-  text: Сегментацию суммы заказа (`low` / `mid` / `high`) нужно использовать в нескольких моделях. Зачем выносить её в макрос `amount_bucket`?
   multi: false
-  topic: Макросы
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: Макросы
+    en: Macros
+  text:
+    ru: Сегментацию суммы заказа (`low` / `mid` / `high`) нужно использовать в нескольких моделях. Зачем выносить её в макрос `amount_bucket`?
+    en: The segmentation of the order amount (`low` / `mid` / `high`) has to be used in several models. Why move it into an `amount_bucket` macro?
   options:
-  - text: Чтобы dbt выполнял сегментацию быстрее обычного `CASE`, потому что макрос компилируется один раз и дальше кэшируется
+  - text:
+      ru: Чтобы dbt выполнял сегментацию быстрее обычного `CASE`, потому что макрос компилируется один раз и дальше кэшируется
+      en: So dbt performs the segmentation faster than a plain `CASE`, because the macro is compiled once and then cached
     correct: false
-  - text: Чтобы логика жила в одном месте и переиспользовалась в моделях, а отличия SQL-диалектов прятались внутри макроса
+  - text:
+      ru: Чтобы логика жила в одном месте и переиспользовалась в моделях, а отличия SQL-диалектов прятались внутри макроса
+      en: So the logic lives in one place and is reused across models, and the differences between SQL dialects are hidden inside the macro
     correct: true
-  - text: Чтобы результат сегментации сохранялся в хранилище отдельной таблицей и не пересчитывался в каждой модели
+  - text:
+      ru: Чтобы результат сегментации сохранялся в хранилище отдельной таблицей и не пересчитывался в каждой модели
+      en: So the segmentation result is saved in the warehouse as a separate table and not recomputed in each model
     correct: false
-  - text: Чтобы не писать тесты на эту логику, потому что макросы проверяются dbt автоматически при каждой сборке проекта
+  - text:
+      ru: Чтобы не писать тесты на эту логику, потому что макросы проверяются dbt автоматически при каждой сборке проекта
+      en: So no tests are needed for this logic, because dbt checks macros automatically on every project build
     correct: false
   hints:
-  - Макрос — это Jinja, которая подставляет SQL при компиляции. Что это даёт, кроме скорости?
-  explanation: 'макрос — это Jinja-функция, которая при компиляции подставляет SQL в модель, быстрее от этого ничего не становится. Правка порогов делается в одном месте, а различия диалектов (DuckDB, Postgres, ClickHouse) можно скрыть внутри макроса. Тесты всё равно нужны: на логику макроса пишут unit test модели.'
+    ru:
+    - Макрос — это Jinja, которая подставляет SQL при компиляции. Что это даёт, кроме скорости?
+    en:
+    - A macro is Jinja that substitutes SQL at compile time. What does that give you besides speed?
+  explanation:
+    ru: 'макрос — это Jinja-функция, которая при компиляции подставляет SQL в модель, быстрее от этого ничего не становится. Правка порогов делается в одном месте, а различия диалектов (DuckDB, Postgres, ClickHouse) можно скрыть внутри макроса. Тесты всё равно нужны: на логику макроса пишут unit test модели.'
+    en: 'a macro is a Jinja function that substitutes SQL into the model at compile time; nothing gets faster because of it. Changing thresholds is done in one place, and the dialect differences (DuckDB, Postgres, ClickHouse) can be hidden inside the macro. Tests are still needed: for the macro''s logic you write a unit test of the model.'
 - id: q7
   section: main
-  level: 🟨 применение
-  difficulty: средний
-  text: Чем unit test отличается от singular test?
   multi: false
-  topic: Тесты данных
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: Тесты данных
+    en: Data tests
+  text:
+    ru: Чем unit test отличается от singular test?
+    en: How does a unit test differ from a singular test?
   options:
-  - text: 'Ничем по сути: оба проверяют уже загруженные данные в хранилище, а различаются только местом хранения файла, названием и способом запуска в CI'
+  - text:
+      ru: 'Ничем по сути: оба проверяют уже загруженные данные в хранилище, а различаются только местом хранения файла, названием и способом запуска в CI'
+      en: 'In essence they do not: both check data already loaded into the warehouse, and differ only in where the file is stored, in the name and in how it is run in CI'
     correct: false
-  - text: Unit test пишется на Python и запускается отдельно от dbt, а singular — SQL-запрос, который выполняется командой `dbt test` вместе с остальными проверками проекта
+  - text:
+      ru: Unit test пишется на Python и запускается отдельно от dbt, а singular — SQL-запрос, который выполняется командой `dbt test` вместе с остальными проверками проекта
+      en: A unit test is written in Python and run separately from dbt, while a singular test is a SQL query executed by `dbt test` together with the other checks of the project
     correct: false
-  - text: Unit test проверяет YAML-конфигурацию проекта (типы столбцов, описания и тесты) на корректность, а singular проверяет значения в таблицах хранилища
+  - text:
+      ru: Unit test проверяет YAML-конфигурацию проекта (типы столбцов, описания и тесты) на корректность, а singular проверяет значения в таблицах хранилища
+      en: A unit test checks the project's YAML configuration (column types, descriptions and tests) for correctness, while a singular test checks values in warehouse tables
     correct: false
-  - text: Unit test на заданных входных данных (`given`) проверяет логику модели против ожидаемого результата (`expect`), а singular проверяет реальные данные в хранилище
+  - text:
+      ru: Unit test на заданных входных данных (`given`) проверяет логику модели против ожидаемого результата (`expect`), а singular проверяет реальные данные в хранилище
+      en: A unit test checks the model logic against the expected result (`expect`) on given input data (`given`), while a singular test checks the real data in the warehouse
     correct: true
   hints:
-  - 'Сравните, на каких данных работает каждый тест: на заданных в YAML или на реальных в хранилище.'
-  explanation: unit test (dbt 1.8+) подставляет в модель фиксированные строки и сравнивает результат с ожидаемым, поэтому ловит ошибки в логике до того, как данные пришли. Singular test — произвольный SQL, который возвращает строки с нарушениями на настоящих данных. Unit tests пишутся в YAML, а не на Python.
+    ru:
+    - 'Сравните, на каких данных работает каждый тест: на заданных в YAML или на реальных в хранилище.'
+    en:
+    - 'Compare the data each test works on: data given in YAML or real data in the warehouse.'
+  explanation:
+    ru: unit test (dbt 1.8+) подставляет в модель фиксированные строки и сравнивает результат с ожидаемым, поэтому ловит ошибки в логике до того, как данные пришли. Singular test — произвольный SQL, который возвращает строки с нарушениями на настоящих данных. Unit tests пишутся в YAML, а не на Python.
+    en: a unit test (dbt 1.8+) feeds fixed rows into the model and compares the result with the expected one, so it catches logic errors before the data arrives. A singular test is arbitrary SQL that returns rows with violations on the real data. Unit tests are written in YAML, not in Python.
 - id: q8
   section: main
-  level: 🟥 анализ
-  difficulty: сложный
-  text: Тест `unique` на `stg_orders` падает. Витрина `mart_orders` строится из `stg_orders`. Что сделает `dbt build` с витриной?
   multi: false
-  topic: Тесты данных
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+    en: 🟥 analysis
+  topic:
+    ru: Тесты данных
+    en: Data tests
+  text:
+    ru: Тест `unique` на `stg_orders` падает. Витрина `mart_orders` строится из `stg_orders`. Что сделает `dbt build` с витриной?
+    en: The `unique` test on `stg_orders` fails. The mart `mart_orders` is built from `stg_orders`. What will `dbt build` do with the mart?
   options:
-  - text: 'Построит как обычно: тест `unique` только фиксирует дубли в результатах и не влияет на порядок сборки'
+  - text:
+      ru: 'Построит как обычно: тест `unique` только фиксирует дубли в результатах и не влияет на порядок сборки'
+      en: 'Build it as usual: the `unique` test only records duplicates in the results and does not affect the build order'
     correct: false
-  - text: Построит, но пометит строки с дублями в служебной колонке, чтобы их можно было отфильтровать позже
+  - text:
+      ru: Построит, но пометит строки с дублями в служебной колонке, чтобы их можно было отфильтровать позже
+      en: Build it, but mark the rows with duplicates in a service column so they can be filtered out later
     correct: false
-  - text: Пропустит витрину (skipped) вместе с остальными зависимыми ресурсами, потому что упал тест на upstream-модели
+  - text:
+      ru: Пропустит витрину (skipped) вместе с остальными зависимыми ресурсами, потому что упал тест на upstream-модели
+      en: Skip the mart (skipped) together with the other dependent resources, because a test on the upstream model failed
     correct: true
-  - text: Откатит `stg_orders` к прошлой версии и построит витрину на ней, чтобы пайплайн не останавливался
+  - text:
+      ru: Откатит `stg_orders` к прошлой версии и построит витрину на ней, чтобы пайплайн не останавливался
+      en: Roll `stg_orders` back to the previous version and build the mart on it so the pipeline does not stop
     correct: false
   hints:
-  - '`dbt build` идёт по DAG и выполняет тесты модели сразу после неё.'
-  explanation: '`dbt build` идёт по DAG и выполняет модели вместе с их тестами; если upstream-ресурс упал (в том числе тест с severity `error`), все зависимые ресурсы пропускаются, а команда завершается с кодом 1. Если запускать `dbt run`, а потом `dbt test`, витрина уже будет построена на дублях. Откатов у dbt нет: `stg_orders` останется построенной, просто дальше пайплайн не пойдёт.'
+    ru:
+    - '`dbt build` идёт по DAG и выполняет тесты модели сразу после неё.'
+    en:
+    - '`dbt build` walks the DAG and runs a model''s tests right after the model.'
+  explanation:
+    ru: '`dbt build` идёт по DAG и выполняет модели вместе с их тестами; если upstream-ресурс упал (в том числе тест с severity `error`), все зависимые ресурсы пропускаются, а команда завершается с кодом 1. Если запускать `dbt run`, а потом `dbt test`, витрина уже будет построена на дублях. Откатов у dbt нет: `stg_orders` останется построенной, просто дальше пайплайн не пойдёт.'
+    en: '`dbt build` walks the DAG and runs models together with their tests; if an upstream resource fails (including a test with severity `error`), all dependent resources are skipped and the command exits with code 1. If you run `dbt run` and then `dbt test`, the mart will already be built on duplicates. dbt has no rollbacks: `stg_orders` stays built, the pipeline just does not go further.'
 - id: q9
   section: main
-  level: 🟥 анализ
-  difficulty: сложный
-  text: Статус заказа меняется (`processing` → `shipped` → `delivered`), а аналитикам нужно знать, какой статус был у заказа на любую прошлую дату. Что использовать?
   multi: false
-  topic: Снапшоты
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+    en: 🟥 analysis
+  topic:
+    ru: Снапшоты
+    en: Snapshots
+  text:
+    ru: Статус заказа меняется (`processing` → `shipped` → `delivered`), а аналитикам нужно знать, какой статус был у заказа на любую прошлую дату. Что использовать?
+    en: An order's status changes (`processing` → `shipped` → `delivered`), and analysts need to know the status an order had on any past date. What should be used?
   options:
-  - text: '`snapshot` со стратегией `timestamp` по `updated_at`: dbt закрывает старую версию строки и добавляет новую с датами действия'
+  - text:
+      ru: '`snapshot` со стратегией `timestamp` по `updated_at`: dbt закрывает старую версию строки и добавляет новую с датами действия'
+      en: 'A `snapshot` with the `timestamp` strategy on `updated_at`: dbt closes the old version of the row and adds a new one with validity dates'
     correct: true
-  - text: '`incremental` с `unique_key=order_id`: при каждом запуске строка заказа обновляется, а прошлые статусы сохраняются в служебной таблице'
+  - text:
+      ru: '`incremental` с `unique_key=order_id`: при каждом запуске строка заказа обновляется, а прошлые статусы сохраняются в служебной таблице'
+      en: '`incremental` with `unique_key=order_id`: on each run the order row is updated, and past statuses are kept in a service table'
     correct: false
-  - text: '`view` поверх таблицы заказов: каждый запрос заново читает данные, поэтому историю статусов можно получить по прошлым датам'
+  - text:
+      ru: '`view` поверх таблицы заказов: каждый запрос заново читает данные, поэтому историю статусов можно получить по прошлым датам'
+      en: 'A `view` over the orders table: every query reads the data again, so the status history can be obtained for past dates'
     correct: false
-  - text: '`ephemeral`-модель с оконной функцией по `order_id`: история статусов считается на лету из текущей таблицы заказов'
+  - text:
+      ru: '`ephemeral`-модель с оконной функцией по `order_id`: история статусов считается на лету из текущей таблицы заказов'
+      en: 'An `ephemeral` model with a window function over `order_id`: the status history is computed on the fly from the current orders table'
     correct: false
   hints:
-  - Нужна история версий строки с датами действия (SCD2).
-  explanation: 'snapshot хранит версии строки (SCD2): при изменении `updated_at` закрывает старую версию (`dbt_valid_to`) и добавляет новую (`dbt_valid_from`). Incremental с `unique_key` перезапишет строку, и история потеряется. Snapshot видит только то, что есть в источнике на момент запуска, поэтому запускать его нужно регулярно: изменения между запусками не сохранятся.'
+    ru:
+    - Нужна история версий строки с датами действия (SCD2).
+    en:
+    - You need a history of row versions with validity dates (SCD2).
+  explanation:
+    ru: 'snapshot хранит версии строки (SCD2): при изменении `updated_at` закрывает старую версию (`dbt_valid_to`) и добавляет новую (`dbt_valid_from`). Incremental с `unique_key` перезапишет строку, и история потеряется. Snapshot видит только то, что есть в источнике на момент запуска, поэтому запускать его нужно регулярно: изменения между запусками не сохранятся.'
+    en: 'a snapshot stores row versions (SCD2): when `updated_at` changes it closes the old version (`dbt_valid_to`) and adds a new one (`dbt_valid_from`). Incremental with `unique_key` overwrites the row, and the history is lost. A snapshot sees only what the source contains at the time of the run, so it has to be run regularly: changes between runs are not saved.'
 - id: q10
   section: main
-  level: 🟥 анализ
-  difficulty: средний
-  text: Загрузка raw-данных идёт в 05:00 по cron, `dbt build` — в 06:00 на другой машине. Однажды загрузка закончилась в 07:00, и витрины пересчитались на вчерашних данных. Чего не хватает?
   multi: false
-  topic: Свежесть данных и оркестрация
+  difficulty: средний
+  level:
+    ru: 🟥 анализ
+    en: 🟥 analysis
+  topic:
+    ru: Свежесть данных и оркестрация
+    en: Data freshness and orchestration
+  text:
+    ru: Загрузка raw-данных идёт в 05:00 по cron, `dbt build` — в 06:00 на другой машине. Однажды загрузка закончилась в 07:00, и витрины пересчитались на вчерашних данных. Чего не хватает?
+    en: Raw data is loaded at 05:00 by cron, `dbt build` runs at 06:00 on another machine. One day loading finished at 07:00, and the marts were recomputed on yesterday's data. What is missing?
   options:
-  - text: 'Больше generic-тестов: `not_null` и `accepted_values` на витринах поймают вчерашние данные и остановят пересчёт'
+  - text:
+      ru: 'Больше generic-тестов: `not_null` и `accepted_values` на витринах поймают вчерашние данные и остановят пересчёт'
+      en: 'More generic tests: `not_null` and `accepted_values` on the marts will catch yesterday''s data and stop the recomputation'
     correct: false
-  - text: Оркестратора, который знает, что dbt нужно запускать после загрузки, и умеет повторы и алерты
+  - text:
+      ru: Оркестратора, который знает, что dbt нужно запускать после загрузки, и умеет повторы и алерты
+      en: An orchestrator that knows dbt must run after the load, and handles retries and alerts
     correct: true
-  - text: Перехода с Core на другой адаптер, который сам дождётся завершения загрузки в источнике перед сборкой
+  - text:
+      ru: Перехода с Core на другой адаптер, который сам дождётся завершения загрузки в источнике перед сборкой
+      en: A switch from Core to another adapter that waits for the source load to finish before building
     correct: false
-  - text: Переноса моделей из `marts` в `staging`, чтобы они пересчитывались раньше и не зависели от времени загрузки
+  - text:
+      ru: Переноса моделей из `marts` в `staging`, чтобы они пересчитывались раньше и не зависели от времени загрузки
+      en: Moving the models from `marts` to `staging` so they are recomputed earlier and do not depend on the load time
     correct: false
   hints:
-  - dbt Core не знает о внешних задачах и не имеет своего планировщика.
-  explanation: 'dbt Core отвечает за зависимости между моделями, но не за порядок относительно внешних задач (загрузка) и не имеет планировщика. Эту роль берёт оркестратор (cron — минимум, Dagster или Airflow — полноценно): запуск после события, повторы, оповещения.'
+    ru:
+    - dbt Core не знает о внешних задачах и не имеет своего планировщика.
+    en:
+    - dbt Core knows nothing about external tasks and has no scheduler of its own.
+  explanation:
+    ru: 'dbt Core отвечает за зависимости между моделями, но не за порядок относительно внешних задач (загрузка) и не имеет планировщика. Эту роль берёт оркестратор (cron — минимум, Dagster или Airflow — полноценно): запуск после события, повторы, оповещения.'
+    en: 'dbt Core is responsible for dependencies between models, but not for the order relative to external tasks (loading), and it has no scheduler. That role is taken by an orchestrator (cron is the minimum, Dagster or Airflow the full answer): running after an event, retries, alerts.'
 - id: r1
   section: reserve
-  level: 🟩 знание
-  difficulty: простой
-  text: Что обычно происходит на staging-слое?
   multi: false
-  topic: Слои моделей
+  difficulty: простой
+  level:
+    ru: 🟩 знание
+    en: 🟩 knowledge
+  topic:
+    ru: Слои моделей
+    en: Model layers
+  text:
+    ru: Что обычно происходит на staging-слое?
+    en: What usually happens in the staging layer?
   options:
-  - text: Собираются финальные витрины
+  - text:
+      ru: Собираются финальные витрины
+      en: The final marts are built
     correct: false
-  - text: Хранятся только исходные данные
+  - text:
+      ru: Хранятся только исходные данные
+      en: Only source data is stored
     correct: false
-  - text: Поля переименовываются, типы приводятся, модель остаётся 1:1 с источником
+  - text:
+      ru: Поля переименовываются, типы приводятся, модель остаётся 1:1 с источником
+      en: Fields are renamed, types are cast, and the model stays 1:1 with the source
     correct: true
-  - text: Считаются агрегаты по клиентам и периодам
+  - text:
+      ru: Считаются агрегаты по клиентам и периодам
+      en: Aggregates by customer and period are computed
     correct: false
-  hints: []
-  explanation: 'staging — тонкий слой над источником: переименование, приведение типов, простая очистка, без join и агрегаций. Бизнес-логика и витрины собираются выше, в intermediate и marts.'
+  hints:
+    ru: []
+    en: []
+  explanation:
+    ru: 'staging — тонкий слой над источником: переименование, приведение типов, простая очистка, без join и агрегаций. Бизнес-логика и витрины собираются выше, в intermediate и marts.'
+    en: 'staging is a thin layer over the source: renaming, type casting, simple cleaning, no joins or aggregations. Business logic and marts are built above, in intermediate and marts.'
 - id: r2
   section: reserve
-  level: 🟨 применение
-  difficulty: простой
-  text: Какая materialization не создаёт объект в базе, а подставляется в зависимые модели как CTE?
   multi: false
-  topic: Материализации
+  difficulty: простой
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: Материализации
+    en: Materializations
+  text:
+    ru: Какая materialization не создаёт объект в базе, а подставляется в зависимые модели как CTE?
+    en: Which materialization does not create an object in the database but is substituted into dependent models as a CTE?
   options:
-  - text: '`ephemeral`'
+  - text:
+      ru: '`ephemeral`'
+      en: '`ephemeral`'
     correct: true
-  - text: '`view`'
+  - text:
+      ru: '`view`'
+      en: '`view`'
     correct: false
-  - text: '`table`'
+  - text:
+      ru: '`table`'
+      en: '`table`'
     correct: false
-  - text: '`incremental`'
+  - text:
+      ru: '`incremental`'
+      en: '`incremental`'
     correct: false
-  hints: []
-  explanation: ephemeral-модель встраивается в запрос зависимой модели, поэтому её нельзя посмотреть в базе и напрямую запросить. Подходит для небольших промежуточных шагов; view и table создают объекты, incremental дописывает данные в существующую таблицу.
+  hints:
+    ru: []
+    en: []
+  explanation:
+    ru: ephemeral-модель встраивается в запрос зависимой модели, поэтому её нельзя посмотреть в базе и напрямую запросить. Подходит для небольших промежуточных шагов; view и table создают объекты, incremental дописывает данные в существующую таблицу.
+    en: an ephemeral model is embedded into the query of the dependent model, so it cannot be inspected in the database or queried directly. It suits small intermediate steps; view and table create objects, incremental appends data to an existing table.
 - id: r3
   section: reserve
-  level: 🟨 применение
-  difficulty: средний
-  text: На витрине `fct_order_items` зерно — пара `order_id` + `order_item_id`, по отдельности ни одно из полей не уникально. Как проверить уникальность зерна?
   multi: false
-  topic: Тесты данных
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: Тесты данных
+    en: Data tests
+  text:
+    ru: На витрине `fct_order_items` зерно — пара `order_id` + `order_item_id`, по отдельности ни одно из полей не уникально. Как проверить уникальность зерна?
+    en: On the mart `fct_order_items` the grain is the pair `order_id` + `order_item_id`; neither field is unique on its own. How to test the uniqueness of the grain?
   options:
-  - text: '`unique` на `order_id`'
+  - text:
+      ru: '`unique` на `order_id`'
+      en: '`unique` on `order_id`'
     correct: false
-  - text: '`not_null` на оба поля'
+  - text:
+      ru: '`not_null` на оба поля'
+      en: '`not_null` on both fields'
     correct: false
-  - text: '`relationships` между этими полями'
+  - text:
+      ru: '`relationships` между этими полями'
+      en: '`relationships` between these fields'
     correct: false
-  - text: '`dbt_utils.unique_combination_of_columns` с обоими столбцами'
+  - text:
+      ru: '`dbt_utils.unique_combination_of_columns` с обоими столбцами'
+      en: '`dbt_utils.unique_combination_of_columns` with both columns'
     correct: true
   hints:
-  - Ищите тест из пакета dbt_utils, который проверяет комбинацию столбцов.
-  explanation: '`unique` проверяет один столбец, а для составного ключа пакет `dbt_utils` даёт тест на уникальность комбинации. Альтернатива — суррогатный ключ через `dbt_utils.generate_surrogate_key` и обычный `unique` на нём.'
+    ru:
+    - Ищите тест из пакета dbt_utils, который проверяет комбинацию столбцов.
+    en:
+    - Look for a test from the dbt_utils package that checks a combination of columns.
+  explanation:
+    ru: '`unique` проверяет один столбец, а для составного ключа пакет `dbt_utils` даёт тест на уникальность комбинации. Альтернатива — суррогатный ключ через `dbt_utils.generate_surrogate_key` и обычный `unique` на нём.'
+    en: '`unique` checks one column, and for a composite key the `dbt_utils` package provides a test for the uniqueness of a combination. An alternative is a surrogate key via `dbt_utils.generate_surrogate_key` and a regular `unique` on it.'
 - id: r4
   section: reserve
-  level: 🟨 применение
+  multi: false
   difficulty: простой
-  text: Что проверяет пакет `dbt_project_evaluator`?
-  multi: false
-  topic: Качество проекта
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: Качество проекта
+    en: Project quality
+  text:
+    ru: Что проверяет пакет `dbt_project_evaluator`?
+    en: What does the `dbt_project_evaluator` package check?
   options:
-  - text: Скорость выполнения моделей в продакшене
+  - text:
+      ru: Скорость выполнения моделей в продакшене
+      en: The execution speed of models in production
     correct: false
-  - text: 'Соответствие проекта лучшим практикам: структуру DAG, именование, покрытие тестами и документацией'
+  - text:
+      ru: 'Соответствие проекта лучшим практикам: структуру DAG, именование, покрытие тестами и документацией'
+      en: 'How well the project follows best practices: DAG structure, naming, test and documentation coverage'
     correct: true
-  - text: Корректность данных в таблицах
+  - text:
+      ru: Корректность данных в таблицах
+      en: The correctness of data in tables
     correct: false
-  - text: Совместимость пакетов с версией адаптера
-    correct: false
-  hints: []
-  explanation: 'пакет анализирует сам проект (по метаданным `manifest`) и показывает нарушения: модель без теста или описания, витрина, ссылающаяся на source напрямую, неверные префиксы. Данные в таблицах он не проверяет — для этого generic, singular и unit tests или `dbt_expectations`.'
-- id: r5
-  section: reserve
-  level: 🟥 анализ
-  difficulty: сложный
-  text: Макрос использует функцию, которая есть в DuckDB, но на Postgres и ClickHouse падает. Как сделать, чтобы проект работал на всех таргетах?
-  multi: false
-  topic: Макросы
-  options:
-  - text: Завести отдельную копию проекта под каждую БД
-    correct: false
-  - text: Переписать все модели на Python
-    correct: false
-  - text: Реализовать макрос через `adapter.dispatch` (или ветвление по `target.type`), чтобы модели не менялись
-    correct: true
-  - text: Убрать макрос и скопировать SQL в каждую модель
+  - text:
+      ru: Совместимость пакетов с версией адаптера
+      en: The compatibility of packages with the adapter version
     correct: false
   hints:
-  - dbt умеет выбирать реализацию макроса под конкретный адаптер.
-  explanation: '`adapter.dispatch` выбирает реализацию макроса под адаптер (`duckdb__…`, `postgres__…`, `clickhouse__…`, запасной `default__…`), а модели вызывают один и тот же макрос. Копии проекта и дублирование SQL ломаются при первой правке.'
+    ru: []
+    en: []
+  explanation:
+    ru: 'пакет анализирует сам проект (по метаданным `manifest`) и показывает нарушения: модель без теста или описания, витрина, ссылающаяся на source напрямую, неверные префиксы. Данные в таблицах он не проверяет — для этого generic, singular и unit tests или `dbt_expectations`.'
+    en: 'the package analyzes the project itself (from the `manifest` metadata) and shows violations: a model without a test or description, a mart that refers to a source directly, wrong prefixes. It does not check the data in tables — for that use generic, singular and unit tests or `dbt_expectations`.'
+- id: r5
+  section: reserve
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+    en: 🟥 analysis
+  topic:
+    ru: Макросы
+    en: Macros
+  text:
+    ru: Макрос использует функцию, которая есть в DuckDB, но на Postgres и ClickHouse падает. Как сделать, чтобы проект работал на всех таргетах?
+    en: A macro uses a function that exists in DuckDB but fails on Postgres and ClickHouse. How to make the project work on all targets?
+  options:
+  - text:
+      ru: Завести отдельную копию проекта под каждую БД
+      en: Create a separate copy of the project for each database
+    correct: false
+  - text:
+      ru: Переписать все модели на Python
+      en: Rewrite all models in Python
+    correct: false
+  - text:
+      ru: Реализовать макрос через `adapter.dispatch` (или ветвление по `target.type`), чтобы модели не менялись
+      en: Implement the macro through `adapter.dispatch` (or branching on `target.type`) so the models do not change
+    correct: true
+  - text:
+      ru: Убрать макрос и скопировать SQL в каждую модель
+      en: Remove the macro and copy the SQL into every model
+    correct: false
+  hints:
+    ru:
+    - dbt умеет выбирать реализацию макроса под конкретный адаптер.
+    en:
+    - dbt can choose the macro implementation for a specific adapter.
+  explanation:
+    ru: '`adapter.dispatch` выбирает реализацию макроса под адаптер (`duckdb__…`, `postgres__…`, `clickhouse__…`, запасной `default__…`), а модели вызывают один и тот же макрос. Копии проекта и дублирование SQL ломаются при первой правке.'
+    en: '`adapter.dispatch` picks the macro implementation for the adapter (`duckdb__…`, `postgres__…`, `clickhouse__…`, fallback `default__…`), and the models call the same macro. Project copies and duplicated SQL break at the first edit.'

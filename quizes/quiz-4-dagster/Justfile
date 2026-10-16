@@ -4,11 +4,11 @@ src := dir / "../src"
 
 default: run
 
-# Пройти тест
-run:
-    uv run --with questionary --with pyyaml python {{src}}/quiz.py {{dir}}
+# Пройти тест (lang: ru или en; без него язык спросят при старте)
+run lang="":
+    uv run --with questionary --with pyyaml python {{src}}/quiz.py {{dir}} {{ if lang != "" { "--lang " + lang } else { "" } }}
 
-# quiz.ru.md → quiz.yaml с самопроверкой (section — заголовок раздела, если нужен только он)
+# quiz.<язык>.md → quiz.yaml с самопроверкой (section — заголовок раздела, если нужен только он)
 yaml section="":
     uv run --with pyyaml python {{src}}/md2yaml.py {{dir}} {{ if section != "" { quote(section) } else { "" } }}
 
