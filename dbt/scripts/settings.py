@@ -1,11 +1,37 @@
-"""Строгое чтение settings.yml: нет секции/ключа — ValueError с именем ключа и файлом (без дефолтов)."""
+"""Строгое чтение settings.yml: нет секции/ключа — ValueError с именем ключа и файлом (без дефолтов).
+
+Другой проект (напр. Dagster/) переиспользует скрипты, указав свой файл: `--settings <проект>/scripts/settings.yml`
+(или `use(path)` из кода). Раскладка проекта: `<проект>/scripts/settings.yml`, `<проект>/config/`, `<проект>/data/`.
+"""
 from __future__ import annotations
 
 from pathlib import Path
 
 import yaml
 
-FILE = Path(__file__).with_name("settings.yml")
+FILE = Path(__file__).with_name("settings.yml")   # bootstrap: файл самого dbt/; подменяется через use()
+
+
+def use(path: str | Path) -> None:
+    global FILE
+    f = Path(path).expanduser().resolve()
+    if not f.is_file():
+        raise ValueError(f"нет файла настроек {f} — укажите существующий путь в --settings")
+    FILE = f
+
+
+def use_from_argv(argv: list[str], flag: str = "--settings") -> None:
+    """Выбрать файл настроек по `--settings X` / `--settings=X` до чтения секций (разбор argparse идёт позже)."""
+    for i, a in enumerate(argv):
+        if a == flag and i + 1 < len(argv):
+            return use(argv[i + 1])
+        if a.startswith(flag + "="):
+            return use(a.split("=", 1)[1])
+
+
+def root() -> Path:
+    """Корень проекта текущего файла настроек (`<проект>/scripts/settings.yml` → `<проект>`)."""
+    return FILE.parent.parent
 
 
 def _wrap(path: str, v):

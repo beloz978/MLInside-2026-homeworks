@@ -20,6 +20,7 @@
     python scripts/check_hw.py --no-run        # по уже собранным artefacts target/
     python scripts/check_hw.py --no-gh         # без обращения к GitHub
     python scripts/check_hw.py --json          # отчёт в JSON
+    python scripts/check_hw.py --settings <проект>/scripts/settings.yml   # настройки другого проекта
 """
 from __future__ import annotations
 
@@ -34,16 +35,17 @@ from pathlib import Path
 
 import yaml
 
-ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import settings  # noqa: E402
 from db import table_ref  # noqa: E402
 from envload import load_env  # noqa: E402
 from logger import EMO  # noqa: E402
-from settings import section  # noqa: E402
 from utils import close, read_json, resolve_path  # noqa: E402
 
-load_env()
-S = section("check_hw")
+settings.use_from_argv(sys.argv)     # --settings выбирает файл настроек до чтения секций (разбор argparse — в main)
+ROOT = settings.root()
+load_env(ROOT / "config")
+S = settings.section("check_hw")
 T = S["thresholds"]
 
 MARTS, QA_PACKAGES, ORDER_HOOKS = S["marts"], S["qa_packages"], S["order_hooks"]
@@ -467,6 +469,7 @@ def level_name(points: int) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--settings", help="settings.yml проекта (по умолчанию — этого dbt/); см. scripts/settings.py")
     ap.add_argument("--no-run", action="store_true", help="не запускать dbt, использовать готовые target/ и DuckDB")
     ap.add_argument("--with-second", action="store_true", help="вместе с --no-run: всё же собрать проект на втором таргете")
     ap.add_argument("--no-gh", action="store_true", help="не обращаться к GitHub API (критерий 7 и CI будут не пройдены)")
