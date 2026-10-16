@@ -88,5 +88,17 @@ def test_identity_env_requires_var(monkeypatch):
 
 
 def test_settings_file_is_valid():
-    quiz_cfg, log_cfg = quiz.load_settings()
+    quiz_cfg, log_cfg = quiz.load_settings(Path(__file__).parent.parent / "quiz-4-dagster")
     assert log_cfg["identity"] in quiz.IDENTITY_MODES and quiz_cfg["pause_key"]
+
+
+def test_settings_override_wins_and_missing_errors(tmp_path):
+    import settings
+    (tmp_path / "settings.yml").write_text("quiz:\n  hint_key: x\nlog:\n  dir: mylogs\n", encoding="utf-8")
+    cfg = settings.load_settings(tmp_path)
+    assert cfg["quiz"]["hint_key"] == "x" and cfg["quiz"]["pause_key"] == "p"  # override wins, rest from base
+    assert cfg["log"]["dir"] == "mylogs" and cfg["log"]["identity"] == "os_git"
+    with pytest.raises(ValueError, match="quiz.nope"):
+        settings.require(cfg, "quiz.nope")
+    with pytest.raises(ValueError, match="settings.yml missing"):
+        settings.load_settings(tmp_path / "absent")

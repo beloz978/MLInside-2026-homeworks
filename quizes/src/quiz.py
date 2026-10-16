@@ -1,10 +1,10 @@
 """Interactive terminal quiz from quizes/<name>.yaml (made by md2yaml.py), with a JSONL event log per run.
 
-Usage: uv run --with questionary --with pyyaml python quizes/src/quiz.py quizes/quiz-4-dagster.yaml
+Usage: uv run --with questionary --with pyyaml python quizes/src/quiz.py quizes/quiz-4-dagster
 Only the main section is asked; reserve questions are skipped.
 Keys: digits 1–9 pick (single) or toggle (multi) an option, Enter answers, the hint key shows the hint,
-the pause key pauses the timer (keys in quizes/src/settings.yml).
-Log: <log.dir>/<yymmdd-HHMMSS>-<quiz>-<user>.jsonl — who/where at start, then every move, (un)choice, hint, pause, answer.
+the pause key pauses the timer (settings: quizes/src/settings.yml + <quiz_dir>/settings.yml).
+Log: <quiz_dir>/<log.dir>/<yymmdd-HHMMSS>-<quiz>-<user>.jsonl — who/where at start, then every move, (un)choice, hint, pause, answer.
 """
 import getpass
 import json
@@ -24,25 +24,23 @@ import yaml
 from prompt_toolkit.key_binding import KeyBindings, merge_key_bindings
 from questionary.prompts.common import InquirerControl
 
-SETTINGS = Path(__file__).with_name("settings.yml")
+from settings import load_settings as load_merged, require
+
 SHOW_HINT = object()  # returned by a prompt when the hint key is pressed
 PAUSE = object()  # returned by a prompt when the pause key is pressed
 IDENTITY_MODES = ("os_git", "ask", "env")
 
 
-def load_settings() -> tuple[dict, dict]:
-    """(quiz, log) sections of settings.yml; missing keys or bad values raise ValueError."""
-    data = yaml.safe_load(SETTINGS.read_text(encoding="utf-8"))
-    for section, keys in (("quiz", ("hint_difficulties", "hint_position", "hint_key", "pause_key")),
-                          ("log", ("dir", "identity", "identity_env"))):
-        missing = [k for k in keys if k not in data.get(section, {})]
-        if missing:
-            raise ValueError(f"{SETTINGS}: {section}.{f', {section}.'.join(missing)} not set")
-    quiz, log = data["quiz"], data["log"]
+def load_settings(quiz_dir: Path) -> tuple[dict, dict]:
+    """(quiz, log) sections of the merged settings; missing keys or bad values raise ValueError."""
+    cfg = load_merged(quiz_dir)
+    require(cfg, *(f"quiz.{k}" for k in ("hint_difficulties", "hint_position", "hint_key", "pause_key")),
+            *(f"log.{k}" for k in ("dir", "identity", "identity_env")))
+    quiz, log = cfg["quiz"], cfg["log"]
     if quiz["hint_position"] not in ("before", "after"):
-        raise ValueError(f"{SETTINGS}: quiz.hint_position must be before or after")
+        raise ValueError(f"{cfg['_files']}: quiz.hint_position must be before or after")
     if log["identity"] not in IDENTITY_MODES:
-        raise ValueError(f"{SETTINGS}: log.identity must be one of {', '.join(IDENTITY_MODES)}")
+        raise ValueError(f"{cfg['_files']}: log.identity must be one of {', '.join(IDENTITY_MODES)}")
     return quiz, log
 
 
@@ -208,15 +206,16 @@ def ask(q: dict, n: int, total: int, settings: dict, log: Log, **io) -> tuple[in
 
 
 def main() -> None:
-    quiz_file = Path(sys.argv[1])
+    quiz_dir = Path(sys.argv[1])
+    quiz_file = quiz_dir / "quiz.yaml"
     data = yaml.safe_load(quiz_file.read_text(encoding="utf-8"))
     questions = [q for q in data["questions"] if q.get("section", "main") == "main"]
-    settings, log_cfg = load_settings()
+    settings, log_cfg = load_settings(quiz_dir)
     print(data.get("title", ""))
     who = identity(log_cfg)
     slug = re.sub(r"[^\w.-]+", "_", who["user"]) or "user"
-    log_dir = SETTINGS.parent / log_cfg["dir"]  # relative to quizes/src/
-    log = Log(log_dir / f"{datetime.now():%y%m%d-%H%M%S}-{quiz_file.stem}-{slug}.jsonl")
+    log_dir = quiz_dir / log_cfg["dir"]  # relative to the quiz dir
+    log = Log(log_dir / f"{datetime.now():%y%m%d-%H%M%S}-{quiz_dir.resolve().name}-{slug}.jsonl")
     log.emit("run_start", **who, quiz_file=str(quiz_file), cwd=os.getcwd(), repo_commit=git("rev-parse", "--short", "HEAD"),
              python=platform.python_version(), platform=platform.platform(), n_questions=len(questions))
     got = best = 0
