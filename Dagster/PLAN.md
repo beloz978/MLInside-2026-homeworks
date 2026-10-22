@@ -107,7 +107,7 @@ Dagster-HW-MLI-26/
 | 0 ✅ | Уточнить версии `dagster` / `dagster-dbt` / `dagster-dlt` (Context7); вынести путь `settings.yml` в параметр у `doctor.py` и `check_hw.py` в `dbt/` | `dbt/` тесты зелёные |
 | 1 ✅ | Эталон уровня 6–7: seeds + dbt-ассеты + checks + schedule + README | `dagster asset materialize --select '*'` зелёный |
 | 2 ✅ | `Dagster/` toolchain: Makefile, config, `inspect_defs.py`, критерии 1–6, фикстуры `empty` и `tier7` | `make check` на эталоне `tier-7` → **6** (критерии 1–6; 7 дадут только критерии 7–9 на этапе 4), на `empty` → 0 |
-| 3 | Эталон 8–9: automation, freshness, Telegram, resources по окружениям, pytest, pre-commit, CI | CI зелёный |
+| 3 ✅* | Эталон 8–9: automation, freshness, Telegram, resources по окружениям, pytest, pre-commit, CI | CI зелёный (*локально, на чистой копии; на GitHub — после создания репо, §13) |
 | 4 | Критерии 7–9, фикстура `tier9` | на `tier-9` → 9 |
 | 5 | Эталон 10: `@dlt_assets`, ML-ассет | метрики в UI |
 | 6 | Критерий 10, `MANUAL.md`, `wizard.py`, строка в корневом README («автопроверка») | на `main` → 10 из 10 |
@@ -196,19 +196,37 @@ Dagster-HW-MLI-26/
 - `--no-run` читает данные из DuckDB и `HW_DAGSTER_HOME`, если он задан; без него критерии 4 и 5 по запуску не пройдут.
 - Не сделано: `wizard.py` и `MANUAL.md` (этап 6), `make data` (данные студент берёт тем же `fetch_olist_seeds.py` из `dbt/`).
 
-## 13. Этап 3: подготовка (начат, код не писался)
+## 13. Этап 3: итоги (эталон 8–9)
 
-Проверено на установленных dagster 1.13.26 / Context7:
+Эталон — по-прежнему в staging `.claude/ref/Dagster-HW-MLI-26` (= будущая ветка `tier-9`); снимок уровня 6–7 —
+`.claude/ref/Dagster-HW-MLI-26.tier-7` (= ветка `tier-7`). Что сделано (параметры — `config/settings.yml`, секции
+`automation`, `retry`, `raw_checks`, `alerts`, `environments`):
 
-- **Freshness:** `dg.FreshnessPolicy.time_window(fail_window=timedelta, warn_window=timedelta | None)` (окна ≥ 60 с, warn < fail) или `FreshnessPolicy.cron(...)`; ставится через `AssetSpec.replace_attributes(freshness_policy=...)` в `DagsterDbtTranslator.get_asset_spec`. В `dagster.yaml` — `freshness: enabled: true`.
-- **Automation:** `AssetSpec.replace_attributes(automation_condition=dg.AutomationCondition.eager())` на витринах.
-- **Блокирующий check:** аргумент `blocking=True` у `@dg.asset_check`; retry — `RetryPolicy` у ассета/op.
-- **Алерт:** `@dg.run_failure_sensor` (`RunFailureSensorContext`), только побочный эффект (Telegram Bot API через ресурс с `EnvVar`); тест — `build_run_status_sensor_context(...).for_run_failure()`.
-- **Postgres для prod:** `dagster.yaml` с `run_storage` / `event_log_storage` / `schedule_storage` из `dagster_postgres` (нужен пакет `dagster-postgres`).
+| Пункт задания | Как в эталоне | Чем проверено |
+|---|---|---|
+| Declarative automation | `AutomationCondition.eager()` на staging и витринах (в `OlistTranslator.get_asset_spec`); свой `AutomationConditionSensorDefinition` с `default_status=RUNNING` — встроенный `default_automation_condition_sensor` создаётся выключенным | `test_automation_and_freshness`, `test_sensors_start_running` |
+| Freshness | `FreshnessPolicy.time_window(fail=48 ч, warn=26 ч)` на витринах. Демон freshness с 1.12 включён по умолчанию — `freshness: enabled` в `dagster.yaml` **не нужен** (в подготовке было ошибочно) | `test_automation_and_freshness` |
+| Retry + блокирующий check | `RetryPolicy` на обоих dbt-мультиассетах; 5 `@asset_check(blocking=True)` на raw: не пусто, ключ уникален | `test_raw_checks_are_blocking`; `test_blocking_check_stops_downstream` (мутация `blocking=False` → тест падает) |
+| Ресурсы по окружениям | `environments`: `DAGSTER_ENV` → `notifier` (`log` в dev/test, `telegram` в prod); prod-инстанс — `config/dagster.prod.yaml`, `storage.postgres.postgres_url: {env: DAGSTER_PG_URL}` (URL без пароля, пароль — `~/.pgpass`) | `test_notifier_by_environment`; Postgres — **не проверен** (сервер не поднят) |
+| Telegram-алерт | `@run_failure_sensor` (RUNNING) → ресурс `notifier`; `TelegramNotifier` (urllib, `EnvVar` для токена и чата) | `test_failure_sensor_sends_alert` (реальный упавший запуск → `build_run_status_sensor_context(...).for_run_failure()`); реальная отправка — **не проверена** (нет токена) |
+| pytest для ассетов | 16 тестов: граф, checks, automation, сенсоры, алерт, блокировка, полная материализация | `make test` — 16 passed |
+| pre-commit | `.pre-commit-config.yaml`: pre-commit-hooks (yaml, eof, whitespace, private key) + локальные ruff и sqlfluff через `uv run` (версии из `uv.lock`) | хуки по отдельности на чистой копии; сам `pre-commit run` — **нет** (staging не git-репо) |
+| CI | `.github/workflows/ci.yml`: `uv sync --frozen` → seeds-заголовки → `dbt deps` + `prepare` → `pre-commit run --all-files` → `dagster definitions validate` → `pytest -m "not slow"` | имитация на чистой копии (`/tmp/claude-501/ci-sim.sh`) — все шаги зелёные; на GitHub — после создания репо |
 
-**Общий Postgres `~/.apps/pg`:** порт **5433**, `localhost`, у проекта своя БД и роль (`just project-add <имя>` в `~/.apps/pg`), пароль — в `~/.pgpass`
-(в `.env` и репозитории паролей нет; libpq/psycopg берут его из `~/.pgpass` сами). На 2026-10-16 из сессии `pg_isready -p 5433` → «no attempt»
-(сервер не запущен или песочница не пускает) — перед этапом 3 нужно `just up` и `just project-add dagster_hw` (это делает пользователь: команда пишет в `~/.pgpass`).
+Находки, важные для чекера (этап 4):
 
-Порядок этапа 3: снимок текущего эталона как `tier-7` → automation + freshness → блокирующий check + retry → ресурсы по `DAGSTER_ENV` (prod = Postgres)
-→ Telegram-сенсор + тесты → `.pre-commit-config.yaml` (ruff, sqlfluff) → `.github/workflows/ci.yml` (локально: ruff, sqlfluff, `dagster definitions validate`, pytest).
+- **Чистый клон без CSV рвёт граф:** без файлов в `seeds/` dbt не видит seed-узлы, raw-слой становится внешними ассетами,
+  а тесты графа падают. В эталоне CI кладёт в seeds только заголовки (`tests/fixtures/seed_headers/`). У студентов
+  CI будет падать так же — подсказка в `hints.yaml` для критерия 9.
+- **sqlfluff + dbt templater:** templater задаётся только в `.sqlfluff` каталога запуска. Поэтому `.sqlfluff` лежит в
+  корне (`project_dir = dbt/olist`). На dbt-проекте из ДЗ 1 было 102 нарушения; стилевые правила AL01, ST07, AM05
+  и ST05 исключены, layout исправлен `sqlfluff fix`, два ложных RF02 — `-- noqa: RF02`. В `noqa` после кода правила
+  не должно быть текста, иначе sqlfluff его не распознаёт.
+- **env до нашего кода:** `dagster dev` читает `dagster.yaml` (а значит, и `DAGSTER_PG_URL`) раньше `load_env()`.
+  Решение — `python -m olist_dagster.settings <cmd>`: подгружает `config/.env*`, не перетирая окружение, и делает
+  `exec` команды (`make dev-prod`, sqlfluff).
+- Чекер на эталоне 8–9 даёт 5/10 с `--no-gh`, как и раньше: регрессии по критериям 1–5 нет.
+
+**Общий Postgres `~/.apps/pg`:** порт **5433**, `localhost`, у проекта своя БД и роль (`just project-add <имя>` в `~/.apps/pg`), пароль — в `~/.pgpass`.
+На 2026-10-23 `pg_isready -p 5433` → «no attempt». Нужно `just up` и `just project-add dagster_hw`; это делает пользователь,
+потому что команда пишет в `~/.pgpass`. После этого — `make setup-prod && make dev-prod` и скриншот запусков из Postgres.
