@@ -6,12 +6,13 @@
   2) (если нет --no-run) запускает `dagster asset materialize -m <модуль> --select '*'` в изолированном DAGSTER_HOME;
   3) читает итоги запуска (материализации, результаты checks) и сверяет DuckDB с эталоном Olist
      (сырые таблицы — raw_expectations.json, витрины — control_figures.json; файлы общие с ДЗ по dbt);
-  4) через GitHub API проверяет, что PR создан и заполнен;
-  5) печатает отчёт и итог «N из 10 баллов».
+  4) читает файлы проекта (git ls-files), .pre-commit-config.yaml и .github/workflows — для критериев 7–9;
+  5) через GitHub API проверяет, что PR создан и заполнен, и статус CI на его коммите;
+  6) печатает отчёт и итог «N из 10 баллов».
 
 Каждый критерий состоит из подпроверок; балл дают, только если все они пройдены. Баллы независимы.
-Соответствие уровням ДЗ: 1–7 баллов — «6–7», 8–9 — «8–9», 10 — «10». Критерии 7–10 пока без проверок
-(см. Dagster/PLAN.md, этапы 4 и 6): набрать сейчас можно не больше 6 баллов.
+Соответствие уровням ДЗ: 1–7 баллов — «6–7», 8–9 — «8–9», 10 — «10». Критерий 10 пока без проверок
+(см. Dagster/PLAN.md, этап 6): набрать сейчас можно не больше 9 баллов.
 
 Пути — из config/.env / .env.local (см. config/.env.example). Код возврата: 0 — набрано ≥ --min баллов, 2 — ошибка запуска.
 
@@ -49,7 +50,7 @@ from utils import resolve_path  # noqa: E402
 
 load_env(ROOT / "config")
 S = settings.section("check_hw")
-T, G, RD = S["thresholds"], S["graph"], S["readme"]
+T, G, RD, T9 = S["thresholds"], S["graph"], S["readme"], S["tier9"]
 RULES = olist_data.MartRules(S["tolerance"]["rel"], S["tolerance"]["abs"], S["segment_values"], 2)
 INSPECT = ROOT / "scripts" / "inspect_defs.py"
 
@@ -65,6 +66,9 @@ class Ctx:
     marts: dict = field(default_factory=dict)        # olist_data.check_marts
     readme: Path | None = None
     gh: dict | None = None
+    texts: dict[str, str] = field(default_factory=dict)       # файлы проекта (путь от каталога проекта → текст)
+    precommit: str | None = None                              # .pre-commit-config.yaml (проект или родители)
+    workflows: dict[str, str] = field(default_factory=dict)   # .github/workflows/*.yml (проект или родители)
 
     @property
     def assets(self) -> list[dict]:
@@ -175,10 +179,68 @@ def evaluate(ctx: Ctx) -> list[Criterion]:
         c.add(pr["has_versions"], "в описании PR указаны версии dagster / dagster-dbt / dbt-core / адаптера", "формат: dagster-dbt 0.29.26")
         c.add(pr["has_image"], "в описании PR есть скриншот (lineage или успешный запуск)", "приложите картинку")
 
-    # 7–10 — пока без проверок
+    # 7 — automation, freshness, секреты
+    c = new()
+    auto = [a["key"] for a in mk if a["automation_condition"]]
+    c.add(len(auto) >= T9["automation_marts_min"], f"≥ {T9['automation_marts_min']} витрина с declarative automation (automation_condition)",
+          f"с условием: {auto or '—'}")
+    fresh = [a["key"] for a in ctx.assets if a["freshness"]]
+    c.add(len(fresh) >= T9["freshness_min"], f"≥ {T9['freshness_min']} ассет с freshness policy", f"найдено: {fresh[:6] or '—'}")
+    leaks = find_secrets(ctx.texts)
+    c.add(bool(ctx.texts) and not leaks, "секреты не в репозитории (токены, ключи, .env.local)",
+          "\n".join(leaks[:8]) if leaks else ("нет файлов проекта для проверки" if not ctx.texts else f"проверено файлов: {len(ctx.texts)}"))
+
+    # 8 — алерт + «Как устроен Dagster»
+    c = new()
+    alert = [s["name"] for s in info.get("sensors", []) if s.get("run_status") in T9["failure_statuses"]]
+    c.add(bool(alert), "есть сенсор на сбой запуска (run_failure_sensor)",
+          f"сенсоры: {[(s['name'], s.get('run_status') or s['type']) for s in info.get('sensors', [])] or '—'}")
+    tg = [p for p, t in ctx.texts.items() if re.search(T9["telegram_regex"], t)]
+    c.add(bool(tg), "алерт уходит в Telegram (Telegram упомянут в коде или конфиге)", f"файлы: {tg[:4] or '—'}")
+    options = dagster_options(ctx)
+    c.add(any(options.values()), "≥ 1 пункт «Как устроен Dagster»: ресурсы по окружениям / pytest для ассетов / retry + блокирующий check",
+          "; ".join(f"{k}: {'да' if v else 'нет'}" for k, v in options.items()))
+
+    # 9 — pre-commit и CI
+    c = new()
+    pc = ctx.precommit or ""
+    c.add(bool(re.search(T9["precommit_python_regex"], pc)) and bool(re.search(T9["precommit_sql_regex"], pc)),
+          "pre-commit: линтер Python (ruff/flake8/black) и SQL (sqlfluff)",
+          "нет .pre-commit-config.yaml" if ctx.precommit is None else "")
+    wf = [n for n, t in ctx.workflows.items() if re.search(T9["workflow_defs_regex"], t) and re.search(T9["workflow_tests_regex"], t)]
+    c.add(bool(wf), "GitHub Actions: workflow проверяет определения Dagster и запускает pytest",
+          f"подходят: {wf or '—'}; всего workflow: {list(ctx.workflows) or '—'}")
+    if gh and gh.get("pr") and gh.get("ci"):
+        st, msg = gh["ci"]
+        c.add(st == "success", "CI на коммите PR прошёл (GitHub API)", msg)
+    else:
+        c.add(False, "CI на коммите PR прошёл (GitHub API)", "PR или данные Actions недоступны")
+
+    # 10 — пока без проверок
     while len(cs) < len(S["criteria_titles"]):
         new().note("info", S["not_implemented_text"])
     return cs
+
+
+def find_secrets(texts: dict[str, str]) -> list[str]:
+    """«файл:строка — вид секрета» (само значение не выводим) + файлы, которым не место в репозитории."""
+    out = [f"{p} — файл с секретами в репозитории" for p in texts if re.search(T9["secret_files_regex"], p)]
+    for p, t in texts.items():
+        for name, rx in T9["secret_regexes"].items():
+            for m in re.finditer(rx, t):
+                out.append(f"{p}:{t.count(chr(10), 0, m.start()) + 1} — {name}")
+    return out
+
+
+def dagster_options(ctx: Ctx) -> dict[str, bool]:
+    """Пункты блока «Как устроен Dagster», хотя бы один нужен для критерия 8."""
+    code = {p: t for p, t in ctx.texts.items() if re.search(T9["code_regex"], p)}
+    tests = [t for p, t in code.items() if re.search(T9["test_file_regex"], p)]
+    return {
+        "ресурсы по окружениям": any(re.search(T9["env_resources_regex"], t) for t in code.values()),
+        "pytest для ассетов": any(re.search(T9["asset_test_regex"], t) for t in tests),
+        "retry + блокирующий check": any(a["retry"] for a in ctx.assets) and any(k["blocking"] for k in ctx.info.get("checks", [])),
+    }
 
 
 def level_name(pts: int) -> str:
@@ -224,6 +286,43 @@ def find_readme(project: Path) -> Path | None:
             if (d / n).exists():
                 return d / n
     return None
+
+
+def project_files(project: Path) -> list[str]:
+    """Что попадёт в репозиторий: git ls-files (отслеживаемые + новые неигнорируемые); без git (или каталог
+    целиком в .gitignore объемлющего репо) — обход каталога без skip_dirs."""
+    try:
+        r = subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard"], cwd=project,
+                           capture_output=True, text=True, timeout=S["timeouts_s"]["git"])
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.splitlines()
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    skip = set(T9["files"]["skip_dirs"])
+    return [str(p.relative_to(project)) for p in project.rglob("*") if p.is_file() and not skip & set(p.relative_to(project).parts)]
+
+
+def read_texts(project: Path, files: list[str]) -> dict[str, str]:
+    F = T9["files"]
+    out = {}
+    for rel in files:
+        p = project / rel
+        if re.search(F["text_regex"], rel) and p.is_file() and p.stat().st_size <= F["max_bytes"]:
+            out[rel] = p.read_text(encoding="utf-8", errors="ignore")
+    return out
+
+
+def find_ci_files(project: Path) -> tuple[str | None, dict[str, str]]:
+    """Первый найденный .pre-commit-config.yaml и workflows — в каталоге проекта или его родителях (проект в подпапке репо)."""
+    pc, wfs = None, {}
+    for d in [project, *list(project.parents)[:S["search_parents"]]]:
+        for n in T9["precommit_names"]:
+            if pc is None and (d / n).is_file():
+                pc = (d / n).read_text(encoding="utf-8", errors="ignore")
+        wd = d / T9["workflows_dir"]
+        if not wfs and wd.is_dir():
+            wfs = {f.name: f.read_text(encoding="utf-8", errors="ignore") for f in sorted(wd.glob("*.y*ml"))}
+    return pc, wfs
 
 
 def hint_for(text: str, hints: list[dict]) -> dict | None:
@@ -274,6 +373,8 @@ def main() -> int:
     contract = json.loads((shared / S["data_files"]["marts_contract"]).read_text(encoding="utf-8"))
     ctx.marts = olist_data.check_marts(db, S["marts"], {x["key"] for x in ctx.dbt_assets}, contract, cf, RULES)
     ctx.readme = find_readme(project)
+    ctx.texts = read_texts(project, project_files(project))
+    ctx.precommit, ctx.workflows = find_ci_files(project)
     if not a.no_gh:
         import gh_api
 

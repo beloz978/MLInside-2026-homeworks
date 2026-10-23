@@ -13,7 +13,7 @@ check_hw:
           mart_customer_profile, mart_hourly_order_pattern, mart_seller_analytics]
   segment_values: [HIGH, MEDIUM, LOW]
   tolerance: {rel: 0.005, abs: 0.5}
-  timeouts_s: {inspect: 180, materialize: 1800}
+  timeouts_s: {inspect: 180, materialize: 1800, git: 30}
   commands:                      # {module} подставляется из HW_DAGSTER_MODULE; python — интерпретатор проекта
     materialize: ["-m", "dagster", "asset", "materialize", "-m", "{module}", "--select", "*"]
   graph:
@@ -37,7 +37,32 @@ check_hw:
     - {min_points: 8, name: "8–9 баллов"}
     - {min_points: 6, name: "6–7 баллов"}
   below_levels_name: "ниже 6 баллов"
-  criteria_titles:               # порядок = номер критерия; 7–10 пока без проверок (появятся на этапах 4 и 6 плана)
+  tier9:                         # критерии 7–9
+    automation_marts_min: 1      # витрин с automation_condition
+    freshness_min: 1             # ассетов с freshness policy
+    failure_statuses: [FAILURE]  # run_status сенсора-алерта (run_failure_sensor)
+    files:                       # какие файлы проекта читаем (git ls-files: отслеживаемые + неигнорируемые новые)
+      max_bytes: 300000
+      text_regex: '\.(py|ya?ml|toml|cfg|ini|json|md|sql|sh|txt|env[\w.-]*)$|(^|/)\.env[\w.-]*$|(^|/)Makefile$'
+      skip_dirs: [.venv, venv, .git, node_modules, target, dbt_packages, logs, data, .dagster_home, __pycache__]
+    secret_files_regex: '(^|/)\.env\.(local|secrets?)$'     # такие файлы не должны попадать в репозиторий
+    secret_regexes:              # имя → регэксп; найденное значение в отчёт не выводится
+      telegram_bot_token: '\b\d{8,10}:[A-Za-z0-9_-]{35}\b'
+      github_token: '\b(gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{22,})\b'
+      private_key: '-----BEGIN [A-Z ]*PRIVATE KEY-----'
+      url_with_password: '\b(postgres(ql)?|mysql|clickhouse)://[^:/\s@]+:[^@/\s{}$]+@'
+    telegram_regex: '(?i)telegram'                           # алерт шлёт в Telegram: упоминание в коде или конфиге
+    code_regex: '\.py$'
+    env_resources_regex: '\b(DAGSTER_ENV|DAGSTER_DEPLOYMENT|DAGSTER_CLOUD_DEPLOYMENT_NAME)\b'
+    test_file_regex: '(^|/)tests?/(.*/)?test_[^/]*\.py$'
+    asset_test_regex: '\b(materialize|materialize_to_memory|execute_in_process|build_asset_context)\b'
+    precommit_names: [.pre-commit-config.yaml, .pre-commit-config.yml]
+    precommit_python_regex: '\b(ruff|flake8|black|pylint)\b'
+    precommit_sql_regex: '\bsqlfluff\b'
+    workflows_dir: .github/workflows
+    workflow_defs_regex: '(dagster definitions validate|dg check defs|dagster asset materialize|dg launch)'
+    workflow_tests_regex: '\bpytest\b'
+  criteria_titles:               # порядок = номер критерия; 10 пока без проверок (этап 6 плана)
     - "Определения Dagster грузятся"
     - "Raw-слой: 8 таблиц Olist загружены"
     - "dbt в графе: staging и витрины, lineage без разрывов"

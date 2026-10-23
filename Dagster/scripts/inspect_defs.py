@@ -59,7 +59,7 @@ def describe(defs) -> dict:
             "parents": sorted(p.to_user_string() for p in n.parent_keys),
             "kinds": sorted(n.kinds),
             "external": bool(n.is_external),
-            "automation_condition": str(cond) if cond is not None else None,
+            "automation_condition": (_safe(cond.get_label) or type(cond).__name__) if cond is not None else None,
             "freshness": str(fresh) if fresh is not None else None,
             "retry": _safe(lambda: ad.op.retry_policy) is not None,
             "metadata_keys": sorted(n.metadata or {}),
@@ -78,7 +78,9 @@ def describe(defs) -> dict:
                     "blocking": blocking.get((k.asset_key.to_user_string(), k.name), False)}
                    for k in sorted(graph.asset_check_keys, key=str)],
         "schedules": schedules,
-        "sensors": [{"name": s.name, "type": type(s).__name__} for s in defs.sensors or []],
+        # run_failure_sensor — это RunStatusSensorDefinition; отличаем по статусу, на который он реагирует
+        "sensors": [{"name": s.name, "type": type(s).__name__,
+                     "run_status": _safe(lambda: s._run_status.value)} for s in defs.sensors or []],
         "jobs": [j.name for j in defs.jobs or []],
         "resources": sorted(defs.resources or {}),
     }
