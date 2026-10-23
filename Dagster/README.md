@@ -6,7 +6,7 @@
 входные данные → raw → dbt (staging → marts) → (на 10) модель
 ```
 
-Здесь текст задания и скрипты самопроверки (`make check`, пока критерии 1–6: [scripts/README.md](scripts/README.md)); план автопроверки и эталонного решения — [PLAN.md](PLAN.md). Данные и эталонные цифры — те же, что в ДЗ по dbt (`kagglehub.dataset_download("olistbr/brazilian-ecommerce")`; ожидаемые числа строк — в [ДЗ по dbt](../dbt/ДЗ/ДЗ_dbt_Olist.md), раздел 0).
+Здесь текст задания и скрипты самопроверки (`make check`, пока критерии 1–9: [scripts/README.md](scripts/README.md)); план автопроверки и эталонного решения — [PLAN.md](PLAN.md). Данные и эталонные цифры — те же, что в ДЗ по dbt (`kagglehub.dataset_download("olistbr/brazilian-ecommerce")`; ожидаемые числа строк — в [ДЗ по dbt](../dbt/ДЗ/ДЗ_dbt_Olist.md), раздел 0).
 
 ## Что нужно сделать
 

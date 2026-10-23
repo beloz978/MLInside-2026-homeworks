@@ -108,7 +108,7 @@ Dagster-HW-MLI-26/
 | 1 ✅ | Эталон уровня 6–7: seeds + dbt-ассеты + checks + schedule + README | `dagster asset materialize --select '*'` зелёный |
 | 2 ✅ | `Dagster/` toolchain: Makefile, config, `inspect_defs.py`, критерии 1–6, фикстуры `empty` и `tier7` | `make check` на эталоне `tier-7` → **6** (критерии 1–6; 7 дадут только критерии 7–9 на этапе 4), на `empty` → 0 |
 | 3 ✅* | Эталон 8–9: automation, freshness, Telegram, resources по окружениям, pytest, pre-commit, CI | CI зелёный (*локально, на чистой копии; на GitHub — после создания репо, §13) |
-| 4 | Критерии 7–9, фикстура `tier9` | на `tier-9` → 9 |
+| 4 ✅* | Критерии 7–9, фикстура `tier9` | на `tier-9` → 9 (*фикстура `tier9` → 9; эталон `--no-gh` → 7, с GitHub — после создания репо, §14) |
 | 5 | Эталон 10: `@dlt_assets`, ML-ассет | метрики в UI |
 | 6 | Критерий 10, `MANUAL.md`, `wizard.py`, строка в корневом README («автопроверка») | на `main` → 10 из 10 |
 
@@ -230,3 +230,30 @@ Dagster-HW-MLI-26/
 **Общий Postgres `~/.apps/pg`:** порт **5433**, `localhost`, у проекта своя БД и роль (`just project-add <имя>` в `~/.apps/pg`), пароль — в `~/.pgpass`.
 На 2026-10-23 `pg_isready -p 5433` → «no attempt». Нужно `just up` и `just project-add dagster_hw`; это делает пользователь,
 потому что команда пишет в `~/.pgpass`. После этого — `make setup-prod && make dev-prod` и скриншот запусков из Postgres.
+
+## 14. Этап 4: итоги (критерии 7–9)
+
+Подпроверки (параметры — `scripts/settings.yml` → `check_hw.tier9`, подсказки — `data/hints.yaml`):
+
+| # | Подпроверки | Откуда данные |
+|---|---|---|
+| 7 | ≥ 1 витрина с `automation_condition`; ≥ 1 ассет с freshness; секретов нет (токены Telegram/GitHub, приватные ключи, URL с паролем, отслеживаемые `.env.local`/`.env.secrets`) | `inspect_defs` (метка условия, freshness) + файлы проекта |
+| 8 | сенсор с `run_status = FAILURE`; Telegram упомянут в коде или конфиге; ≥ 1 из: `DAGSTER_ENV` в коде / `tests/test_*.py` с `materialize`… / retry + блокирующий check | `inspect_defs` (`sensors[].run_status`, `assets[].retry`, `checks[].blocking`) + файлы |
+| 9 | `.pre-commit-config.yaml` с ruff/flake8/black/pylint **и** sqlfluff; workflow с проверкой defs **и** pytest; CI на head PR зелёный | файлы в проекте или до `search_parents` родителей; `gh_api.ci_state` |
+
+- **Файлы проекта** — `git ls-files --cached --others --exclude-standard`, то есть то, что окажется в репо, включая ещё
+  не закоммиченное. Если вывод пуст (проект вне git или целиком в `.gitignore`, как staging эталона), чекер обходит
+  каталог без `skip_dirs`. В отчёт попадают только `файл:строка — вид секрета`, без значения.
+- **`run_failure_sensor`** в Dagster — `RunStatusSensorDefinition`, по типу его не отличить от сенсора успешных запусков.
+  Поэтому `inspect_defs` отдаёт `run_status` (приватный `_run_status`, под `_safe`).
+- **dagster-dbt делает checks из dbt-тестов блокирующими** (у эталона все 48 — `blocking`). Значит, в пункте
+  «retry + блокирующий check» у dbt-проекта фактически решает retry; это допустимо: `dbt build` действительно не
+  пускает downstream при упавшем тесте.
+- Фикстура `tests/fixtures/tier9`: граф tier7 + eager/freshness/retry на ассетах, `run_failure_sensor` → Telegram-ресурс,
+  `DAGSTER_ENV`, `.pre-commit-config.yaml`, `.github/workflows/ci.yml`, `tests/test_assets.py`. Тесты внутри фикстур
+  не собираются (`collect_ignore_glob` в `tests/conftest.py`).
+- Проверено: `Dagster/tests` — 22 passed (tier9 → 9 баллов; секрет — FAIL без вывода значения; `.env.local` в репо;
+  без automation/freshness; без сенсора / без всех трёх пунктов; без pre-commit / workflow / с красным CI; сквозной
+  запуск на tier9). Эталон 8–9 полным прогоном с `--no-gh` → **7** (1–5, 7, 8); 6 и 9 требуют GitHub.
+- Не проверено: снимок `tier-7` настоящим чекером (у снимка нет `.venv` и manifest; покрыто фикстурой `tier7` → 6),
+  критерий 9 против настоящего GitHub Actions.
