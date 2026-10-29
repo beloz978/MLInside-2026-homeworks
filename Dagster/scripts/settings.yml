@@ -111,3 +111,11 @@ doctor:
   paths:                         # env — переменная с каталогом (относительно корня проекта), file — что в нём должно лежать
     - {env: HW_DAGSTER_PROJECT_DIR, file: pyproject.toml}
   data_files: [hints.yaml]       # в Dagster/data/
+  hints:                         # что делать при FAIL: ключ — метка строки (инструмент, пакет, переменная, файл)
+    python: "Нужен Python не старше минимальной версии выше: `uv python install 3.13`, затем `make setup`."
+    make: "Установите make (Windows: Git Bash/WSL или `winget install ezwinports.make`)."
+    uv: "Установите uv: https://docs.astral.sh/uv/getting-started/installation/"
+    packages: "Зависимости не поставлены в .venv: выполните `make setup`."
+    env: "Значение не задано: впишите его в Dagster/config/.env (шаблон — config/.env.example)."
+    pyproject.toml: "HW_DAGSTER_PROJECT_DIR должен указывать на каталог Dagster-проекта с pyproject.toml."
+    data_files: "Файл из Dagster/data/ пропал: восстановите его из репозитория (`git restore data/`)."

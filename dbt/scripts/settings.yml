@@ -53,7 +53,12 @@ check_db_from_profile:
   timeout_s: 5.0
 
 wizard:
-  duckdb_path: data/olist.duckdb   # пишется в config/.env как OLIST_DUCKDB_PATH
+  # Умолчания, которые мастер явно записывает в config/.env (пути — от корня dbt/; уже заданное значение не затирается)
+  duckdb_path: data/olist.duckdb             # → OLIST_DUCKDB_PATH
+  control_figures_json: data/control_figures.json   # → CONTROL_FIGURES_JSON
+  profile: olist                             # → HW_DBT_PROFILE (имя профиля в profiles.yml)
+  targets: duckdb                            # → HW_DBT_TARGETS (первый таргет всегда DuckDB)
+  repo_url: "https://github.com/{repo}"      # шаблон ссылки на репозиторий для вывода мастера
   db_defaults:
     postgres: {host: localhost, port: "5432", user: postgres, db: olist}
     clickhouse: {host: localhost, port: "8123", user: default, db: olist}
@@ -80,3 +85,12 @@ doctor:
     - {env: HW_DBT_PROJECT_DIR, file: dbt_project.yml}
     - {env: HW_DBT_PROFILES_DIR, file: profiles.yml}
   data_files: [control_figures.json, marts_contract.json, raw_expectations.json, hints.yaml]   # в <проект>/data/
+  hints:                         # что делать при FAIL: ключ — метка строки (инструмент, пакет, переменная, файл)
+    python: "Нужен Python не старше минимальной версии выше: `uv python install 3.13`, затем `make setup`."
+    make: "Установите make (Windows: Git Bash/WSL или `winget install ezwinports.make`)."
+    uv: "Установите uv: https://docs.astral.sh/uv/getting-started/installation/"
+    packages: "Зависимости не поставлены в .venv: выполните `make setup`."
+    env: "Значение не задано: запустите `make wizard` (он запишет его в config/.env)."
+    dbt_project.yml: "Путь к dbt-проекту неверен: `make wizard` и укажите каталог с dbt_project.yml."
+    profiles.yml: "Путь к profiles.yml неверен: `make wizard` и укажите каталог с profiles.yml."
+    data_files: "Файл из dbt/data/ пропал: восстановите его из репозитория (`git restore data/`)."

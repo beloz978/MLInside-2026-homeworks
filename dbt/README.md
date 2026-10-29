@@ -10,14 +10,20 @@
 
 ```bash
 make setup    # 1. .venv и зависимости
+echo
 make wizard   # 2. мастер: GitHub, путь к проекту, Postgres/ClickHouse -> config/.env и config/.env.local
+echo
 make seeds    # 3. скачать Olist (kagglehub) в seeds/ вашего проекта
               #    затем в каталоге проекта: dbt deps && dbt seed
+echo
 make ready    # 4. проверка готовности: инструменты, пути, доступность СУБД
+echo
 make check    # 5. итог: «Проект прошёл на N из 10 баллов» и список недостающего
 ```
 
-Все шаги подряд: `make run`. Список команд: `make help`. Что делает каждый шаг и какие у него флаги — в [scripts/README.md](scripts/README.md).
+(`echo` — пустая строка-разделитель, чтобы вывод шагов не слипался, если вставить блок в терминал или ячейку целиком.)
+
+Все шаги подряд, с разделителями: `make run`. Список команд: `make help`. Что делает каждый шаг и какие у него флаги — в [scripts/README.md](scripts/README.md).
 
 ## Файлы
 
