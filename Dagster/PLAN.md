@@ -257,3 +257,40 @@ Dagster-HW-MLI-26/
   запуск на tier9). Эталон 8–9 полным прогоном с `--no-gh` → **7** (1–5, 7, 8); 6 и 9 требуют GitHub.
 - Не проверено: снимок `tier-7` настоящим чекером (у снимка нет `.venv` и manifest; покрыто фикстурой `tier7` → 6),
   критерий 9 против настоящего GitHub Actions.
+
+## 15. Этап 5: handoff (начат, код не сохранён)
+
+Состояние на 2026-10-29. Снимки эталона в staging: `.claude/ref/Dagster-HW-MLI-26.tier-7`, `.claude/ref/Dagster-HW-MLI-26.tier-9`;
+рабочая копия `.claude/ref/Dagster-HW-MLI-26` — уровень 8–9, 16 тестов зелёные. Начатые правки этапа 5 откатаны,
+чтобы рабочая копия осталась рабочей.
+
+Проверено (установленные dagster-dlt 0.29.26, dlt 1.31.0, scikit-learn 1.9.1):
+
+- `@dlt_assets(dlt_source=…, dlt_pipeline=…, name=…, group_name=…, dagster_dlt_translator=…)` — **нет `retry_policy`**,
+  retry остаётся на dbt-шагах. Тело: `yield from dlt_resource.run(context=context)`.
+- `DagsterDltTranslator.get_asset_spec(self, data: DltResourceTranslatorData)` (`data.resource`, `data.pipeline`):
+  ключ → `AssetKey(data.resource.name)`, `deps=[]` (иначе upstream — внешний ассет и разрыв lineage), группа `raw`.
+- Staging-модели явно приводят типы (`cast(... as timestamp/float)`), но чекер сверяет суммы — CSV читать
+  `duckdb.read_csv(path).fetch_arrow_table()` и отдавать Arrow в `dlt.resource`, а не строки `csv.DictReader`.
+
+План (порядок):
+
+1. `config/settings.yml` → секция `raw`: `source_name`, `pipeline_name`, `assets_name`, `dataset: main` (= `target.schema`
+   dbt-источников), `pipelines_dir: data/.dlt` (по умолчанию dlt пишет в `~/.dlt`), `write_disposition: replace`.
+   `.env.example`: `OLIST_CSV_DIR=data/olist_csv`; CSV переезжают из `dbt/olist/seeds` (seeds в dbt больше нет).
+2. `defs/raw_dlt.py`: источник — по ресурсу на файл из `data.files`, имя таблицы = имя файла без `.csv`;
+   pipeline `dlt.destinations.duckdb(OLIST_DUCKDB_PATH)`; ресурс Dagster `dlt_resource = DagsterDltResource()`.
+3. `defs/dbt_assets.py`: убрать мультиассет seeds; в трансляторе заменять источник на `AssetKey(identifier)` для всех
+   источников (а не только для seed-узлов). `raw_checks` не меняются: ключи те же.
+4. `defs/ml.py`: `late_delivery_model` — deps `fct_order_totals`, `stg_orders`; признаки `order_price`, `items_cnt`,
+   обещанный срок (дни), час и день недели покупки; таргет `is_late`; сплит по времени (`train_frac` в settings);
+   `LogisticRegression(class_weight="balanced")` в пайплайне со `StandardScaler`; metadata `roc_auc`, `accuracy`,
+   `n_train`, `n_test`, `late_share_test`. Чистая функция `train_and_score(...)` + тест на синтетике.
+5. `scripts/fetch_seeds.py` → писать в `OLIST_CSV_DIR`; CI: шаг с заголовками seeds больше не нужен (источники
+   dbt не требуют файлов) — убрать вместе с `tests/fixtures/seed_headers`.
+6. Тесты: `test_materialize` — dlt + dbt + ml (`roc_auc` > 0.6), граф: 8 raw от dlt (kind `dlt`), ML-ассет downstream витрин.
+7. Чекер (этап 6): критерий 10 — kind `dlt` у ≥ 8 raw-ассетов, row counts как в `raw_expectations.json`,
+   ассет ниже витрин с числовыми ключами metadata из `settings.yml`.
+
+Открыто для пользователя: перенести три снимка эталона в `~/gi/@dataengy/Dagster-HW-MLI-26` (ветки `tier-7`, `tier-9`,
+дальше `main`), поднять общий Postgres (`just up && just project-add dagster_hw`).
