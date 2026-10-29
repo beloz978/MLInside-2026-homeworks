@@ -1,0 +1,31 @@
+# Запуск теста из этого каталога: `just` (= just run). Общий код — ../src.
+# По умолчанию — пресет exam (экзаменационный режим). Другие: just run practice | retake | weak-areas | drill
+dir := justfile_directory()
+src := dir / "../src"
+
+default: run
+
+# Пройти тест (preset по умолчанию exam; lang: ru — единственный язык, можно не указывать)
+run preset="exam" lang="":
+    uv run --with questionary --with pyyaml python {{src}}/quiz.py {{dir}} --preset {{preset}} {{ if lang != "" { "--lang " + lang } else { "" } }}
+
+# Список пресетов
+presets:
+    uv run --with questionary --with pyyaml python {{src}}/quiz.py {{dir}} --list-presets
+
+# quiz.ru.md → quiz.yaml с самопроверкой (section — заголовок раздела, если нужен только он)
+yaml section="":
+    uv run --with pyyaml python {{src}}/md2yaml.py {{dir}} {{ if section != "" { quote(section) } else { "" } }}
+
+# Последние логи прохождений
+logs:
+    @ls -t {{dir}}/logs/*.jsonl 2>/dev/null | head -10 || echo "логов пока нет"
+
+# Проверка SQL-ответов на локальном ClickHouse (нужен бинарник clickhouse)
+verify:
+    @sh {{dir}}/session/verify/00-fixtures.sh
+    @for f in {{dir}}/session/verify/*.sql; do echo "== $f"; clickhouse local --path "$(mktemp -d)" --multiquery --ignore-error < "$f" 2>&1 | tail -n 25; done
+
+# Тесты кода (общие для всех тестов)
+test:
+    uv run --with questionary --with pyyaml --with pytest pytest {{src}}/test_quiz.py
