@@ -168,5 +168,5 @@ path = kagglehub.dataset_download("olistbr/brazilian-ecommerce")   # катал�
 | Баллы | Кол-во витрин для реализации | Требования |
 |-------|------------------------------|------------|
 | 6-7   | 2 | Исходные данные загружены полностью + макрос + пакеты (dbt_utils, dbt_date) + schema.yml с тестами + 1 singular test |
-| 8-9   | 4 | + 3–5 singular tests + 1–3 unit tests + 2 пакета для QA (audit_helper / dbt_expectations / elementary / …) + pre-commit (sqlfluff, dbt parse, хук проверки dbt-проекта) + Makefile или justfile |
-| 10    | 6 | + dbt_project_evaluator + GitHub Actions + incremental или snapshot (SCD2) + 2 таргета (DuckDB / Postgres / ClickHouse) с макросами портабельности |
+| 8-9   | 4 | + 3–5 singular tests + 1–3 unit tests + 2 пакета для QA (любые из audit_helper / dbt_expectations / elementary / …) + pre-commit (sqlfluff, dbt parse, хук проверки dbt-проекта) + Makefile или justfile |
+| 10    | 6 | + dbt_project_evaluator + GitHub Actions + incremental или snapshot (SCD2) + 2 таргета (любые из DuckDB / Postgres / ClickHouse) с макросами портабельности |
