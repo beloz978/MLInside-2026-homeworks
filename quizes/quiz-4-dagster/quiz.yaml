@@ -1,0 +1,770 @@
+langs:
+- ru
+- en
+title:
+  ru: Тест 4. Оркестрация данных и ML-пайплайнов в Dagster
+  en: Quiz 4. Orchestrating data and ML pipelines with Dagster
+meta:
+  ru:
+    audience: Студенты курса MLInside 2026, прошедшие модуль «Оркестрация» и сдавшие (или делающие) ДЗ по dbt
+    purpose: Проверить понимание оркестрации в Dagster и подготовиться к ДЗ по Dagster (самопроверка и контроль)
+    goal: Студент отличает ассеты от задач и выбирает подходящий механизм Dagster для типовой задачи — ресурсы, IO manager, расписания и сенсоры, партиции, проверки, интеграцию с dbt, тесты
+    context: 'Тест после модуля «Оркестрация: ассеты, запуск, автоматизация, тесты»; задание — Dagster/ДЗ/ДЗ_Dagster_Olist.md'
+    prerequisites: Тест 3 (dbt), базовый Python и pytest
+    duration_min: 20
+  en:
+    audience: MLInside 2026 students who have completed the Orchestration module and have done (or are doing) the dbt homework
+    purpose: Check understanding of orchestration in Dagster and get ready for the Dagster homework (self-check and assessment)
+    goal: 'The student tells assets from tasks and picks the right Dagster mechanism for a typical problem: resources, IO managers, schedules and sensors, partitions, checks, dbt integration, tests'
+    context: 'Quiz after the module «Orchestration: assets, runs, automation, tests»; homework: Dagster/ДЗ/ДЗ_Dagster_Olist.md'
+    prerequisites: Quiz 3 (dbt), basic Python and pytest
+    duration_min: 20
+questions:
+- id: q1
+  section: main
+  multi: true
+  difficulty: средний
+  level:
+    ru: 🟩 понимание
+    en: 🟩 understanding
+  topic:
+    ru: Ассеты и lineage
+    en: Assets and lineage
+  text:
+    ru: Что верно про Dagster и Airflow 3? Несколько вариантов.
+    en: What is true about Dagster and Airflow 3? Select all that apply.
+  options:
+  - text:
+      ru: В Dagster узел графа — ассет, то есть результат (таблица, файл, модель)
+      en: In Dagster, a graph node is an asset, i.e. a result (a table, a file, a model)
+    correct: true
+  - text:
+      ru: В Airflow 3 планировать запуски по ассетам нельзя
+      en: In Airflow 3, runs cannot be scheduled by assets
+    correct: false
+  - text:
+      ru: В Airflow 3 граф по-прежнему состоит из задач
+      en: In Airflow 3, the graph still consists of tasks
+    correct: true
+  - text:
+      ru: В Dagster lineage приходится описывать вручную
+      en: In Dagster, lineage has to be described by hand
+    correct: false
+  - text:
+      ru: В Airflow 3 ассет — событие, по которому запускается DAG
+      en: In Airflow 3, an asset is an event that triggers a DAG
+    correct: true
+  hints:
+    ru:
+    - Подумайте, что в каждом инструменте является узлом графа, а что — событием между графами.
+    en:
+    - Think about what the node of the graph is in each tool, and what is an event between graphs.
+  explanation:
+    ru: Dagster описывает не «работу, которую надо выполнить», а результат. Зависимости задаются между ассетами, поэтому lineage строится сам, а проверки и метаданные привязаны к ассету. В Airflow 3 `@asset` упрощает запись и позволяет запускать DAG по событию (asset-aware scheduling), но единица графа по-прежнему задача.
+    en: Dagster describes not «the work to be done» but the result. Dependencies are set between assets, so lineage builds itself, and checks and metadata are attached to the asset. In Airflow 3 `@asset` simplifies the syntax and lets a DAG run on an event (asset-aware scheduling), but the unit of the graph is still the task.
+- id: q2
+  section: main
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟩 понимание
+    en: 🟩 understanding
+  topic:
+    ru: Ресурсы
+    en: Resources
+  text:
+    ru: Зачем ассету принимать ресурс параметром (например, `dwh`), а не создавать подключение внутри функции?
+    en: Why should an asset take a resource as a parameter (for example `dwh`) instead of creating the connection inside the function?
+  options:
+  - text:
+      ru: Чтобы ассет выполнялся быстрее за счёт общего подключения
+      en: So the asset runs faster thanks to a shared connection
+    correct: false
+  - text:
+      ru: Чтобы менять подключение по окружениям, не правя код ассета
+      en: So the connection can change per environment without editing the asset code
+    correct: true
+  - text:
+      ru: Чтобы Dagster шифровал данные, которые ассет читает и пишет
+      en: So Dagster encrypts the data the asset reads and writes
+    correct: false
+  - text:
+      ru: Чтобы каждый ассет запускался в отдельном процессе
+      en: So every asset runs in a separate process
+    correct: false
+  hints:
+    ru: []
+    en: []
+  explanation:
+    ru: имя параметра совпадает с ключом в `Definitions(resources={...})`. Код ассета не знает, dev это или prod, — меняется только ресурс. В тесте в тот же параметр передают временную реализацию. Ускорения, шифрования и отдельного процесса ресурс сам по себе не даёт.
+    en: the parameter name matches the key in `Definitions(resources={...})`. The asset code does not know whether it is dev or prod; only the resource changes. In a test, a temporary implementation is passed to the same parameter. A resource by itself gives no speed-up, encryption or separate process.
+- id: q3
+  section: main
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟩 понимание
+    en: 🟩 understanding
+  topic:
+    ru: IO manager
+    en: IO manager
+  text:
+    ru: Кто отвечает за то, где лежит значение, которое вернул ассет, и откуда его возьмёт следующий ассет?
+    en: Who decides where the value returned by an asset is stored, and where the next asset gets it from?
+  options:
+  - text:
+      ru: IO manager
+      en: IO manager
+    correct: true
+  - text:
+      ru: Asset check
+      en: Asset check
+    correct: false
+  - text:
+      ru: Run storage
+      en: Run storage
+    correct: false
+  - text:
+      ru: Executor
+      en: Executor
+    correct: false
+  hints:
+    ru: []
+    en: []
+  explanation:
+    ru: ассет делает только `return`, а сохранение и загрузку значения между ассетами берёт на себя IO manager (например, `DuckDBPandasIOManager`, `FilesystemIOManager`). Поменять хранилище можно, не трогая код ассетов. Run storage хранит записи о запусках, а не данные; executor решает, как выполнять шаги (в одном процессе или в нескольких); asset check только проверяет результат.
+    en: the asset only does `return`; saving and loading the value between assets is handled by the IO manager (for example `DuckDBPandasIOManager`, `FilesystemIOManager`). The storage can be changed without touching the asset code. Run storage keeps records of runs, not data; the executor decides how steps are executed (in one process or several); an asset check only validates the result.
+- id: q4
+  section: main
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: Расписания и сенсоры
+    en: Schedules and sensors
+  text:
+    ru: Расписание включено в интерфейсе, webserver работает, но запуски по времени не создаются. Какой компонент, скорее всего, не запущен?
+    en: The schedule is turned on in the UI and the webserver is running, but no runs are created on time. Which component is most likely not running?
+  options:
+  - text:
+      ru: IO manager
+      en: IO manager
+    correct: false
+  - text:
+      ru: Code server
+      en: Code server
+    correct: false
+  - text:
+      ru: dagster-daemon
+      en: dagster-daemon
+    correct: true
+  - text:
+      ru: Run launcher
+      en: Run launcher
+    correct: false
+  hints:
+    ru: []
+    en: []
+  explanation:
+    ru: webserver только показывает состояние. Тики расписаний и сенсоров, очередь запусков и automation выполняет daemon. Локально `dg dev` поднимает и webserver, и daemon, а в продакшене daemon нужно запускать отдельно. Без code server интерфейс показал бы ошибку загрузки code location; run launcher и IO manager — не отдельные процессы, а настройки, и до них дело доходит, только когда запуск уже создан.
+    en: the webserver only shows the state. Schedule and sensor ticks, the run queue and automation are handled by the daemon. Locally `dg dev` starts both the webserver and the daemon, while in production the daemon has to be started separately. Without a code server the UI would show a code location loading error; the run launcher and the IO manager are not separate processes but settings, and they only matter once a run has been created.
+- id: q5
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: Расписания и сенсоры
+    en: Schedules and sensors
+  text:
+    ru: Сенсор следит за папкой и на каждый новый CSV создаёт запуск. Что гарантирует, что повторный тик не создаст второй запуск на тот же файл?
+    en: A sensor watches a folder and creates a run for every new CSV. What guarantees that a repeated tick will not create a second run for the same file?
+  options:
+  - text:
+      ru: '`minimum_interval_seconds` сенсора'
+      en: The sensor's `minimum_interval_seconds`
+    correct: false
+  - text:
+      ru: '`run_key` в `RunRequest`'
+      en: '`run_key` in `RunRequest`'
+    correct: true
+  - text:
+      ru: Курсор сенсора
+      en: The sensor cursor
+    correct: false
+  - text:
+      ru: '`partition_key` в `RunRequest`'
+      en: '`partition_key` in `RunRequest`'
+    correct: false
+  hints:
+    ru:
+    - Один механизм отвечает за «откуда продолжить», другой — за «не создавать уже созданное».
+    en:
+    - One mechanism answers «where to continue from», the other «do not create what was already created».
+  explanation:
+    ru: '`run_key` (например, имя файла) — ключ идемпотентности: запуск с тем же `run_key` повторно не создаётся. Курсор нужен, чтобы не перебирать уже обработанное, но сам по себе дубль не запрещает; `minimum_interval_seconds` задаёт только частоту тиков, а `partition_key` говорит, какую партицию считать.'
+    en: '`run_key` (for example the file name) is an idempotency key: a run with the same `run_key` is not created again. The cursor avoids re-scanning what was already processed, but does not forbid a duplicate by itself; `minimum_interval_seconds` only sets how often the ticks happen, and `partition_key` says which partition to compute.'
+- id: q6
+  section: main
+  multi: true
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: Интеграция с dbt
+    en: dbt integration
+  text:
+    ru: Что происходит при подключении dbt-проекта через `dagster-dbt`? Несколько вариантов.
+    en: What happens when a dbt project is connected through `dagster-dbt`? Select all that apply.
+  options:
+  - text:
+      ru: Каждая dbt-модель становится ассетом
+      en: Every dbt model becomes an asset
+    correct: true
+  - text:
+      ru: dbt-тесты отображаются как asset checks
+      en: dbt tests appear as asset checks
+    correct: true
+  - text:
+      ru: Исполнение SQL моделей переходит от dbt к Dagster
+      en: Running the models' SQL moves from dbt to Dagster
+    correct: false
+  - text:
+      ru: Связи между ассетами строятся по `ref` и `source` из `manifest.json`
+      en: Links between assets are built from `ref` and `source` in `manifest.json`
+    correct: true
+  hints:
+    ru:
+    - Кто на самом деле выполняет SQL и из какого артефакта dbt Dagster берёт структуру проекта?
+    en:
+    - Who actually runs the SQL, and which dbt artifact does Dagster take the project structure from?
+  explanation:
+    ru: 'SQL по-прежнему выполняет dbt (через `DbtCliResource`, обычно `dbt build`), а Dagster читает `manifest.json`, строит из него ассеты и lineage и показывает результаты тестов как проверки. Если ключи dbt-источников не совпадают с ключами raw-ассетов, граф получит разрыв: ключи задают через `meta.dagster.asset_key` или `DagsterDbtTranslator`.'
+    en: 'SQL is still executed by dbt (through `DbtCliResource`, usually `dbt build`), while Dagster reads `manifest.json`, builds assets and lineage from it and shows test results as checks. If the keys of dbt sources do not match the keys of the raw assets, the graph gets a gap: align the keys with `meta.dagster.asset_key` or `DagsterDbtTranslator`.'
+- id: q7
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: Партиции
+    en: Partitions
+  text:
+    ru: После исправления логики ассета с daily-партициями нужно пересчитать последние 30 дней. Что использовать?
+    en: After fixing the logic of an asset with daily partitions, the last 30 days must be recomputed. What should be used?
+  options:
+  - text:
+      ru: Re-execute последнего запуска из интерфейса
+      en: Re-execute the last run from the UI
+    correct: false
+  - text:
+      ru: Backfill по диапазону партиций
+      en: A backfill over a range of partitions
+    correct: true
+  - text:
+      ru: Wipe материализаций ассета
+      en: Wipe the asset's materializations
+    correct: false
+  - text:
+      ru: Reload code location
+      en: Reload the code location
+    correct: false
+  hints:
+    ru:
+    - Нужно запустить материализацию сразу для многих партиций, а не повторить один запуск.
+    en:
+    - You need to materialize many partitions at once, not repeat a single run.
+  explanation:
+    ru: backfill запускает материализацию выбранных партиций, при этом каждая партиция считается идемпотентно, поэтому повторный пересчёт безопасен. Re-execute повторит только последний запуск, то есть одну партицию; wipe лишь стирает историю материализаций и ничего не пересчитывает; reload подхватывает новый код, но запусков не создаёт.
+    en: a backfill materializes the selected partitions, and each partition is computed idempotently, so recomputing is safe. Re-execute repeats only the last run, i.e. one partition; wipe only erases the materialization history and recomputes nothing; reload picks up new code but creates no runs.
+- id: q8
+  section: main
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+    en: 🟥 analysis
+  topic:
+    ru: Проверки ассетов
+    en: Asset checks
+  text:
+    ru: Из-за сбоя загрузки витрина иногда оказывается пустой, а обучение модели всё равно стартует и «успешно» завершается. Что лучше всего закроет проблему?
+    en: Because of a load failure the mart is sometimes empty, yet model training still starts and «successfully» finishes. What fixes the problem best?
+  options:
+  - text:
+      ru: RetryPolicy на ассете обучения с несколькими повторами
+      en: A RetryPolicy on the training asset with several retries
+    correct: false
+  - text:
+      ru: Asset check `row_count > 0` на витрине с severity WARN
+      en: An asset check `row_count > 0` on the mart with severity WARN
+    correct: false
+  - text:
+      ru: Freshness check на витрине через `build_last_update_freshness_checks`
+      en: A freshness check on the mart via `build_last_update_freshness_checks`
+    correct: false
+  - text:
+      ru: 'Блокирующий asset check на витрине: `row_count > 0`'
+      en: 'A blocking asset check on the mart: `row_count > 0`'
+    correct: true
+  hints:
+    ru:
+    - Нужна мера, которая не просто сообщает о проблеме, а не даёт выполниться зависимым ассетам.
+    en:
+    - You need a measure that does not merely report the problem but stops dependent assets from running.
+  explanation:
+    ru: retry повторит запуск на тех же пустых данных. Обычная проверка с severity WARN пометит проблему, но обучение не остановит. Freshness check следит за тем, когда ассет обновлялся, а пустая витрина как раз обновилась вовремя. Asset check с `blocking=True` при провале не даёт выполниться зависимым ассетам в этом запуске, а с Declarative Automation то же даёт `all_deps_blocking_checks_passed`. Результат проверки (row_count) заодно остаётся в метаданных ассета.
+    en: a retry will repeat the run on the same empty data. A regular check with severity WARN flags the problem but does not stop training. A freshness check watches when the asset was last updated, and the empty mart was updated on time. An asset check with `blocking=True` prevents dependent assets from running in that run when it fails, and with Declarative Automation `all_deps_blocking_checks_passed` does the same. The check result (row_count) also stays in the asset's metadata.
+- id: q9
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: Тестирование
+    en: Testing
+  text:
+    ru: Как в pytest проверить два связанных ассета без БД и Docker?
+    en: How can two related assets be tested in pytest without a database and Docker?
+  options:
+  - text:
+      ru: Запустить `dg dev` и прогнать оба ассета в интерфейсе
+      en: Run `dg dev` and run both assets in the UI
+    correct: false
+  - text:
+      ru: Вызвать `dagster asset materialize --select ...` через subprocess
+      en: Call `dagster asset materialize --select ...` through subprocess
+    correct: false
+  - text:
+      ru: Вызвать `materialize_to_memory` с тестовыми ресурсами
+      en: Call `materialize_to_memory` with test resources
+    correct: true
+  - text:
+      ru: Запустить `dbt test` в pytest-тесте для моделей этих ассетов
+      en: Run `dbt test` in a pytest test for the models of these assets
+    correct: false
+  hints:
+    ru:
+    - Ищите способ прогнать ассеты механизмом Dagster, но с подменёнными ресурсами и без внешних сервисов.
+    en:
+    - Look for a way to run the assets with Dagster's own machinery, but with replaced resources and no external services.
+  explanation:
+    ru: '`materialize_to_memory` прогоняет цепочку настоящим механизмом Dagster, сам передаёт значения между ассетами и подставляет тестовые ресурсы. CLI-материализация и `dg dev` используют настоящие ресурсы и IO manager, то есть ту самую БД; `dbt test` проверяет данные моделей, а не ассеты Dagster. Отдельный ассет можно вызвать как обычную функцию. В CI дополнительно запускают `dg check defs`, чтобы убедиться, что определения загружаются.'
+    en: '`materialize_to_memory` runs the chain with the real Dagster machinery, passes values between assets itself and plugs in the test resources. CLI materialization and `dg dev` use the real resources and IO manager, i.e. that very database; `dbt test` checks the models'' data, not Dagster assets. A single asset can be called as a regular function. In CI, `dg check defs` is additionally run to make sure the definitions load.'
+- id: q10
+  section: main
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+    en: 🟥 analysis
+  topic:
+    ru: Code locations
+    en: Code locations
+  text:
+    ru: Витрина `mart_order_features` лежит в code location `transform`, а `training_dataset` — в code location `ml`. Обучение должно стартовать после обновления витрины. Как это организовать?
+    en: The mart `mart_order_features` lives in the code location `transform`, and `training_dataset` in the code location `ml`. Training must start after the mart is updated. How to organize this?
+  options:
+  - text:
+      ru: Импортировать код `transform` в `ml` и вызывать функцию витрины напрямую
+      en: Import the `transform` code into `ml` and call the mart function directly
+    correct: false
+  - text:
+      ru: Объединить всё в один code location, иначе lineage не построится
+      en: Merge everything into one code location, otherwise lineage will not be built
+    correct: false
+  - text:
+      ru: Продублировать витрину в `ml` и создать для неё там отдельный ассет
+      en: Duplicate the mart in `ml` and create a separate asset for it there
+    correct: false
+  - text:
+      ru: Указать `deps=[AssetKey("mart_order_features")]` и запускать по событию
+      en: Specify `deps=[AssetKey("mart_order_features")]` and run on an event
+    correct: true
+  hints:
+    ru:
+    - Ассеты разных code location видят друг друга по ключу, но в один запуск не попадают.
+    en:
+    - Assets from different code locations see each other by key, but do not end up in the same run.
+  explanation:
+    ru: 'ассеты разных code location связываются по ключу без импорта кода, и в интерфейсе это одно ребро графа. Но один запуск не материализует ассеты из разных locations, поэтому связывать их нужно событием: automation-условием на `training_dataset`, сенсором или расписанием. Раздельные locations — это независимые пакеты и образы, при общем графе.'
+    en: 'assets from different code locations are linked by key without importing code, and in the UI this is a single edge of the graph. But one run does not materialize assets from different locations, so they have to be linked by an event: an automation condition on `training_dataset`, a sensor or a schedule. Separate locations are independent packages and images with a shared graph.'
+- id: r1
+  section: reserve
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: Автоматизация
+    en: Automation
+  text:
+    ru: Загрузка raw иногда опаздывает, и обучение по расписанию в 06:00 проходит на вчерашних данных. Чем лучше заменить расписание?
+    en: Raw loading is sometimes late, and training on the 06:00 schedule runs on yesterday's data. What is the better replacement for the schedule?
+  options:
+  - text:
+      ru: Сдвинуть расписание обучения на час позже, на 07:00
+      en: Move the training schedule an hour later, to 07:00
+    correct: false
+  - text:
+      ru: Расписанием `ScheduleDefinition` с cron каждые 5 минут
+      en: A `ScheduleDefinition` with a cron every 5 minutes
+    correct: false
+  - text:
+      ru: Добавить RetryPolicy на ассет обучения и витрины
+      en: Add a RetryPolicy to the training and mart assets
+    correct: false
+  - text:
+      ru: Задать ассету обучения условие automation `eager`
+      en: Give the training asset the `eager` automation condition
+    correct: true
+  hints:
+    ru:
+    - Обучение должно зависеть от факта обновления данных, а не от времени.
+    en:
+    - Training should depend on the fact that data was updated, not on the time.
+  explanation:
+    ru: условие живёт на ассете и срабатывает по факту обновления upstream, а не по времени, поэтому в день опоздания загрузки обучение подождёт, а не пройдёт на вчерашних данных. Частое расписание всё равно привязано ко времени и будет переобучать модель без новых данных. Выполняет условия automation-сенсор внутри daemon, поэтому daemon нужен.
+    en: the condition lives on the asset and fires when upstream is updated, not by time, so on the day loading is late the training waits instead of running on yesterday's data. A frequent schedule is still tied to time and will retrain the model without new data. Automation conditions are evaluated by the automation sensor inside the daemon, so the daemon is required.
+- id: r2
+  section: reserve
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: Мониторинг и алерты
+    en: Monitoring and alerts
+  text:
+    ru: Что использовать, чтобы отправить сообщение в Telegram при падении запуска?
+    en: What should be used to send a Telegram message when a run fails?
+  options:
+  - text:
+      ru: '`@dg.run_failure_sensor`'
+      en: '`@dg.run_failure_sensor`'
+    correct: true
+  - text:
+      ru: '`@dg.asset_sensor`'
+      en: '`@dg.asset_sensor`'
+    correct: false
+  - text:
+      ru: '`AutomationCondition.eager()`'
+      en: '`AutomationCondition.eager()`'
+    correct: false
+  - text:
+      ru: '`AssetCheckSeverity.ERROR`'
+      en: '`AssetCheckSeverity.ERROR`'
+    correct: false
+  hints:
+    ru: []
+    en: []
+  explanation:
+    ru: '`run_failure_sensor` вызывается при падении запуска и получает контекст с информацией о сбое; внутри него отправляют сообщение (для Slack есть готовый `make_slack_on_run_failure_sensor`). `asset_sensor` реагирует на материализацию ассета, а не на сбой; `eager` и severity к оповещениям не относятся. Повторы (`RetryPolicy`) и оповещение обычно ставят вместе: сначала повторы, потом сообщение.'
+    en: '`run_failure_sensor` is called when a run fails and receives a context with information about the failure; the message is sent from inside it (for Slack there is a ready `make_slack_on_run_failure_sensor`). `asset_sensor` reacts to an asset materialization, not to a failure; `eager` and severity have nothing to do with notifications. Retries (`RetryPolicy`) and notifications are usually combined: retries first, then the message.'
+- id: r3
+  section: reserve
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: Надёжность запусков
+    en: Run reliability
+  text:
+    ru: Ассет иногда падает из-за временной недоступности внешнего API. Что добавить?
+    en: An asset sometimes fails because an external API is temporarily unavailable. What should be added?
+  options:
+  - text:
+      ru: Блокирующий asset check на недоступность внешнего API
+      en: A blocking asset check for the external API being unavailable
+    correct: false
+  - text:
+      ru: '`RetryPolicy` с задержкой на ассете'
+      en: A `RetryPolicy` with a delay on the asset
+    correct: true
+  - text:
+      ru: Freshness check на ассет с допуском в один час
+      en: A freshness check on the asset with a one-hour tolerance
+    correct: false
+  - text:
+      ru: Второй экземпляр daemon для надёжности
+      en: A second daemon instance for reliability
+    correct: false
+  hints:
+    ru: []
+    en: []
+  explanation:
+    ru: '`RetryPolicy` повторяет упавший шаг (с `delay` и `backoff`), и временный сбой проходит без ручного перезапуска. Asset check и freshness check проверяют результат или его свежесть, а не повторяют шаг; второй daemon с отказом внешнего API не связан.'
+    en: '`RetryPolicy` repeats the failed step (with `delay` and `backoff`), and a temporary failure passes without a manual restart. Asset checks and freshness checks validate the result or its freshness, they do not repeat a step; a second daemon has nothing to do with the external API failing.'
+- id: r4
+  section: reserve
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟩 знание
+    en: 🟩 knowledge
+  topic:
+    ru: Метаданные
+    en: Metadata
+  text:
+    ru: Как показать число загруженных строк рядом с ассетом в интерфейсе Dagster?
+    en: How to show the number of loaded rows next to an asset in the Dagster UI?
+  options:
+  - text:
+      ru: 'Задать `tags={"row_count": "..."}` в декораторе `@asset`'
+      en: 'Set `tags={"row_count": "..."}` in the `@asset` decorator'
+    correct: false
+  - text:
+      ru: Вывести число через `context.log.info` в теле ассета
+      en: Print the number with `context.log.info` in the asset body
+    correct: false
+  - text:
+      ru: Создать отдельный IO manager для хранения счётчика
+      en: Create a separate IO manager to store the counter
+    correct: false
+  - text:
+      ru: 'Вернуть `MaterializeResult` с `metadata={"row_count": n}`'
+      en: 'Return `MaterializeResult` with `metadata={"row_count": n}`'
+    correct: true
+  hints:
+    ru: []
+    en: []
+  explanation:
+    ru: метаданные материализации хранятся вместе с ассетом, показываются в интерфейсе и по ним видна история между запусками (то же даёт `context.add_output_metadata`). Теги задаются при определении ассета и не меняются от запуска к запуску; лог остаётся в логах запуска и к ассету не привязан.
+    en: materialization metadata is stored with the asset, shown in the UI, and its history is visible across runs (`context.add_output_metadata` does the same). Tags are set when the asset is defined and do not change from run to run; a log stays in the run logs and is not tied to the asset.
+- id: r5
+  section: reserve
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+    en: 🟥 analysis
+  topic:
+    ru: Интеграция с dbt
+    en: dbt integration
+  text:
+    ru: После подключения dbt-проекта в графе есть raw-ассет `raw_orders` и dbt-модель `stg_orders`, но между ними нет связи. Что, скорее всего, не так?
+    en: After connecting a dbt project, the graph has a raw asset `raw_orders` and a dbt model `stg_orders`, but there is no link between them. What is most likely wrong?
+  options:
+  - text:
+      ru: Ключ dbt-source не совпадает с ключом `raw_orders`
+      en: The dbt source key does not match the key of `raw_orders`
+    correct: true
+  - text:
+      ru: У ассета `raw_orders` не настроен IO manager
+      en: The `raw_orders` asset has no IO manager configured
+    correct: false
+  - text:
+      ru: Не запущен dagster-daemon, который обновляет граф
+      en: The dagster-daemon that updates the graph is not running
+    correct: false
+  - text:
+      ru: У ассета `raw_orders` другой `group_name`
+      en: The `raw_orders` asset has a different `group_name`
+    correct: false
+  hints:
+    ru:
+    - dagster-dbt связывает ассеты не по именам таблиц, а по ключам ассетов.
+    en:
+    - dagster-dbt links assets not by table names but by asset keys.
+  explanation:
+    ru: dagster-dbt строит связи по ключам ассетов; если ключ dbt-источника отличается от ключа raw-ассета, граф получает разрыв. Ключи выравнивают через `meta.dagster.asset_key` в описании source или через `DagsterDbtTranslator`. Daemon граф не строит, IO manager отвечает за данные, а группа влияет только на отображение.
+    en: dagster-dbt builds links from asset keys; if the key of the dbt source differs from the key of the raw asset, the graph has a gap. Keys are aligned with `meta.dagster.asset_key` in the source description or with `DagsterDbtTranslator`. The daemon does not build the graph, the IO manager is responsible for data, and the group only affects how things are displayed.
+- id: r6
+  section: reserve
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟩 знание
+    en: 🟩 knowledge
+  topic:
+    ru: Партиции
+    en: Partitions
+  text:
+    ru: Ассет нужно считать по дням, начиная с 2024-01-01. Что указать в `@asset(partitions_def=...)`?
+    en: An asset has to be computed per day, starting from 2024-01-01. What should be set in `@asset(partitions_def=...)`?
+  options:
+  - text:
+      ru: '`StaticPartitionsDefinition([...])` со списком дат'
+      en: '`StaticPartitionsDefinition([...])` with a list of dates'
+    correct: false
+  - text:
+      ru: '`DailyPartitionsDefinition(start_date="2024-01-01")`'
+      en: '`DailyPartitionsDefinition(start_date="2024-01-01")`'
+    correct: true
+  - text:
+      ru: '`TimeWindowPartitionMapping(start_offset=-1)`'
+      en: '`TimeWindowPartitionMapping(start_offset=-1)`'
+    correct: false
+  - text:
+      ru: '`ScheduleDefinition(cron_schedule="0 0 * * *")`'
+      en: '`ScheduleDefinition(cron_schedule="0 0 * * *")`'
+    correct: false
+  hints:
+    ru: []
+    en: []
+  explanation:
+    ru: '`DailyPartitionsDefinition` сам заводит партицию на каждый день от `start_date`. Статический список придётся дополнять вручную; `TimeWindowPartitionMapping` описывает, как партиции одного ассета зависят от партиций другого; расписание запускает, но партиций не задаёт.'
+    en: '`DailyPartitionsDefinition` creates a partition for every day from `start_date` by itself. A static list has to be extended by hand; `TimeWindowPartitionMapping` describes how partitions of one asset depend on partitions of another; a schedule launches runs but does not define partitions.'
+- id: r7
+  section: reserve
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: Ресурсы
+    en: Resources
+  text:
+    ru: Ресурсу DWH нужен пароль. Как передать его, чтобы он не хранился в коде и не показывался в интерфейсе Dagster?
+    en: The DWH resource needs a password. How to pass it so that it is not stored in code and not shown in the Dagster UI?
+  options:
+  - text:
+      ru: Прочитать `os.getenv("DWH_PASSWORD")` при создании ресурса
+      en: Read `os.getenv("DWH_PASSWORD")` when creating the resource
+    correct: false
+  - text:
+      ru: Передать пароль через `run_config` при запуске
+      en: Pass the password through `run_config` at launch
+    correct: false
+  - text:
+      ru: Указать `password=dg.EnvVar("DWH_PASSWORD")` в ресурсе
+      en: Set `password=dg.EnvVar("DWH_PASSWORD")` in the resource
+    correct: true
+  - text:
+      ru: Положить пароль в `tags` ресурса в `Definitions`
+      en: Put the password in the resource's `tags` in `Definitions`
+    correct: false
+  hints:
+    ru:
+    - Значение должно читаться в момент запуска, а в интерфейсе показываться только имя переменной.
+    en:
+    - The value must be read at run time, and the UI should show only the variable name.
+  explanation:
+    ru: '`EnvVar` читает значение в момент запуска, а в интерфейсе показывает только имя переменной. `os.getenv` читает значение при загрузке code location, и оно становится видно в интерфейсе; `run_config` и теги сохраняются вместе с запуском в открытом виде.'
+    en: '`EnvVar` reads the value at run time and the UI shows only the variable name. `os.getenv` reads the value when the code location loads, and it becomes visible in the UI; `run_config` and tags are saved with the run in plain text.'
+- id: r8
+  section: reserve
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: IO manager
+    en: IO manager
+  text:
+    ru: Ассеты возвращают pandas DataFrame. Нужно, чтобы результаты сохранялись таблицами в DuckDB, а код ассетов не менялся. Что подключить под ключом `io_manager`?
+    en: Assets return a pandas DataFrame. The results must be saved as tables in DuckDB without changing the asset code. What should be plugged in under the `io_manager` key?
+  options:
+  - text:
+      ru: '`DuckDBResource(database="olist.duckdb")`'
+      en: '`DuckDBResource(database="olist.duckdb")`'
+    correct: false
+  - text:
+      ru: '`FilesystemIOManager(base_dir="data")`'
+      en: '`FilesystemIOManager(base_dir="data")`'
+    correct: false
+  - text:
+      ru: '`mem_io_manager` из стандартной поставки'
+      en: '`mem_io_manager` from the standard distribution'
+    correct: false
+  - text:
+      ru: '`DuckDBPandasIOManager(database="olist.duckdb")`'
+      en: '`DuckDBPandasIOManager(database="olist.duckdb")`'
+    correct: true
+  hints:
+    ru:
+    - Нужен IO manager, который сам пишет DataFrame в таблицу, а не просто даёт подключение.
+    en:
+    - You need an IO manager that writes the DataFrame to a table itself, not one that just gives a connection.
+  explanation:
+    ru: '`DuckDBPandasIOManager` сам записывает возвращённый DataFrame в таблицу и читает его для следующего ассета. `DuckDBResource` даёт только подключение, и SQL пришлось бы писать в ассете; `FilesystemIOManager` сохраняет pickle-файлы, а `mem_io_manager` держит значения в памяти одного запуска.'
+    en: '`DuckDBPandasIOManager` writes the returned DataFrame to a table itself and reads it for the next asset. `DuckDBResource` only gives a connection, and the SQL would have to be written in the asset; `FilesystemIOManager` saves pickle files, and `mem_io_manager` keeps values in the memory of one run.'
+- id: r9
+  section: reserve
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+    en: 🟥 analysis
+  topic:
+    ru: Автоматизация
+    en: Automation
+  text:
+    ru: Витрину нужно пересчитывать сразу после обновления raw, но только если блокирующие проверки raw прошли. Какое условие задать витрине?
+    en: The mart must be recomputed right after raw is updated, but only if the blocking checks on raw have passed. Which condition should be set on the mart?
+  options:
+  - text:
+      ru: '`AutomationCondition.on_cron("0 6 * * *")`'
+      en: '`AutomationCondition.on_cron("0 6 * * *")`'
+    correct: false
+  - text:
+      ru: '`AutomationCondition.eager() & AutomationCondition.all_deps_blocking_checks_passed()`'
+      en: '`AutomationCondition.eager() & AutomationCondition.all_deps_blocking_checks_passed()`'
+    correct: true
+  - text:
+      ru: '`AutomationCondition.missing() & AutomationCondition.any_deps_updated()`'
+      en: '`AutomationCondition.missing() & AutomationCondition.any_deps_updated()`'
+    correct: false
+  - text:
+      ru: '`AutomationCondition.eager() | AutomationCondition.all_deps_blocking_checks_passed()`'
+      en: '`AutomationCondition.eager() | AutomationCondition.all_deps_blocking_checks_passed()`'
+    correct: false
+  hints:
+    ru:
+    - 'Обратите внимание на оператор между условиями: должны выполняться оба сразу.'
+    en:
+    - 'Look at the operator between the conditions: both must hold at once.'
+  explanation:
+    ru: '`eager()` срабатывает на обновление зависимостей, а `&` с `all_deps_blocking_checks_passed()` добавляет требование, что блокирующие проверки upstream прошли. С `|` хватило бы одного из условий, и витрина пересчиталась бы и на плохих данных. `on_cron` привязан ко времени, а `missing()` верно только для ни разу не материализованного ассета.'
+    en: '`eager()` fires on an update of dependencies, and `&` with `all_deps_blocking_checks_passed()` adds the requirement that the upstream blocking checks have passed. With `|` one of the conditions would be enough, and the mart would be recomputed on bad data too. `on_cron` is tied to time, and `missing()` is true only for an asset that has never been materialized.'
+- id: r10
+  section: reserve
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟨 применение
+    en: 🟨 application
+  topic:
+    ru: Запуск и выбор ассетов
+    en: Running and selecting assets
+  text:
+    ru: Нужно материализовать `mart_order_features` вместе со всеми ассетами, от которых она зависит. Какой выбор ассетов взять?
+    en: '`mart_order_features` has to be materialized together with all the assets it depends on. Which asset selection should be used?'
+  options:
+  - text:
+      ru: '`AssetSelection.assets("mart_order_features").downstream()`'
+      en: '`AssetSelection.assets("mart_order_features").downstream()`'
+    correct: false
+  - text:
+      ru: '`AssetSelection.groups("mart_order_features")`'
+      en: '`AssetSelection.groups("mart_order_features")`'
+    correct: false
+  - text:
+      ru: '`AssetSelection.assets("mart_order_features").upstream()`'
+      en: '`AssetSelection.assets("mart_order_features").upstream()`'
+    correct: true
+  - text:
+      ru: '`AssetSelection.assets("mart_order_features")`'
+      en: '`AssetSelection.assets("mart_order_features")`'
+    correct: false
+  hints:
+    ru: []
+    en: []
+  explanation:
+    ru: '`.upstream()` добавляет к ассету всё, от чего он зависит (в строке выбора то же даёт `+mart_order_features`). `.downstream()` берёт зависимые ассеты, `groups` ищет группу с таким именем, а выбор без модификатора материализует только саму витрину.'
+    en: '`.upstream()` adds everything the asset depends on (in a selection string `+mart_order_features` does the same). `.downstream()` takes the dependent assets, `groups` looks for a group with that name, and a selection without a modifier materializes only the mart itself.'

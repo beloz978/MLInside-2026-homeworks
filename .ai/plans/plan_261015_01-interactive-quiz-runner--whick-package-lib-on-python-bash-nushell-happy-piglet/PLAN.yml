@@ -1,0 +1,42 @@
+---
+# /Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/test-4-dagster/.ai/plans/plan_261015_01-interactive-quiz-runner--whick-package-lib-on-python-bash-nushell-happy-piglet/PLAN.yml — structured metadata for the plan in this directory
+# Source-of-truth for Origin/Todo/DoD/Jira-refs. Edit freely.
+# Use `just refresh-plan-dir` to regenerate Todo/DoD from PLAN.md body.
+schema_version: 1
+
+plan:
+  basename:        "whick-package-lib-on-python-bash-nushell-happy-piglet"
+  source_path:     "/Users/user/.claude/plans/whick-package-lib-on-python-bash-nushell-happy-piglet.md"
+  hardlink_inode:  62089608
+  layout_version:  dir
+
+origin:
+  source_path:    "/Users/user/.claude/plans/whick-package-lib-on-python-bash-nushell-happy-piglet.md"
+  source_mtime:   "2026-10-15T00:09:04"
+  imported_at:    "2026-10-14T20:09:25Z"
+  session_id:     "-"
+  project_dir:    "/Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/test-4-dagster"
+  git_branch:     "docs/test-4-dagster-questions"
+  git_commit:     "b99e17e"
+
+todo:
+  - "quizes/md2yaml.py: md → yaml (options, ✅, «Разбор», optional «Подсказка:»)"
+  - "quizes/quiz.py: questionary runner — Answer/💡 Hint menu, checkbox/select, scoring +1/−1 (min 0)"
+  - "assert self-check of md2yaml on test-4-dagster.md (10 questions, matches «Ответы»)"
+  - "quizes/README.md: optional «Подсказка:» line + run commands"
+
+backlog_refs:
+  - id:   "TODO-quiz-runner"
+    file: "../../TODO.md#quizes"
+
+dod:
+  - "`uv run --with pyyaml python quizes/md2yaml.py quizes/test-4-dagster.md` → yaml, self-check passes"
+  - "`uv run --with questionary --with pyyaml python quizes/quiz.py quizes/test-4-dagster.yaml` → go through Q1 (multi) and Q2 (single), use a hint, check the score"
+
+jira_refs:
+  jtc:        null    # {id, file} — populated by /add-plan-as-jira-task
+  jira_task:  null    # {id, url}  — populated by /add-plan-as-jira-task
+  branch_urls:
+    curr:     null    # GitLab blob URL @ current branch
+    dev:      null    # GitLab blob URL @ deploy_dev
+    prod:     null    # GitLab blob URL @ deploy_prod

@@ -1,0 +1,36 @@
+# Пресеты теста 13 поверх базовых (../src/presets.yaml): одноимённые переопределяются по ключам, новые добавляются.
+# Пресет по умолчанию — exam (его же запускают `just` и `make quiz 13`); остальные выбираются через `just run <пресет>`.
+presets:
+  exam:
+    description: "Экзамен dbt AE: все 65 вопросов в случайном порядке, варианты перемешаны, без подсказок, разбор в конце; ориентир — 120 минут и порог 65% (45 из 69 баллов)"
+    order: random
+  sprint:
+    description: "Спринт: 20 случайных вопросов в экзаменационном режиме (около 35 минут), разбор в конце"
+    mode: exam
+    lang: ask
+    sections: [main]
+    pick: random
+    count: 20
+    difficulty_min: простой
+    difficulty_max: сложный
+    order: random
+    topics: all
+    topic_order: mixed
+    shuffle_options: true
+    hints: false
+    seed: null
+  hard:
+    description: "Только сложные вопросы (🟥 анализ), разбор после каждого ответа"
+    mode: immediate
+    lang: ask
+    sections: [main]
+    pick: first
+    count: all
+    difficulty_min: сложный
+    difficulty_max: сложный
+    order: random
+    topics: all
+    topic_order: mixed
+    shuffle_options: false
+    hints: false
+    seed: null

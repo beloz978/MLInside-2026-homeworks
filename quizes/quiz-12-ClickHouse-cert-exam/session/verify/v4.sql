@@ -1,0 +1,12 @@
+CREATE TABLE e (ts DateTime, user_id UInt64) ENGINE=MergeTree ORDER BY ts;
+INSERT INTO e SELECT toDateTime('2026-10-01 00:00:00')+number, intDiv(number,2000) FROM numbers(200000);
+ALTER TABLE e ADD INDEX idx_user user_id TYPE set(100) GRANULARITY 1;
+SELECT 'before-materialize';
+EXPLAIN indexes=1 SELECT count() FROM e WHERE user_id = 42;
+ALTER TABLE e MATERIALIZE INDEX idx_user SETTINGS mutations_sync=2;
+SELECT 'after-materialize';
+EXPLAIN indexes=1 SELECT count() FROM e WHERE user_id = 42;
+CREATE TABLE c (id UInt64, v UInt32, sign Int8) ENGINE=CollapsingMergeTree(sign) ORDER BY id;
+INSERT INTO c VALUES (1,10,1);
+INSERT INTO c VALUES (1,10,-1),(1,20,1);
+SELECT 'sum', sum(v*sign) FROM c GROUP BY id HAVING sum(sign)>0;

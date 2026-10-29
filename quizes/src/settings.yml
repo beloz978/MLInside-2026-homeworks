@@ -1,0 +1,149 @@
+# Базовые настройки тестов (общие). Каждый тест переопределяет нужное в quizes/<тест>/settings.yml.
+# Читают quizes/src/md2yaml.py (самопроверка) и quizes/src/quiz.py.
+quiz:
+  # уровни сложности в заголовке вопроса: «Вопрос 4 🟨 применение · средний»
+  difficulties: [простой, средний, сложный]
+  # для этих уровней хотя бы одна строка «Подсказка: …» обязательна; подсказки показываются в quiz.py по одной
+  hint_difficulties: [средний, сложный]
+  # обязательные поля front matter (--- … ---) в начале quiz.ru.md: для кого, зачем, цель, контекст
+  meta_required: [audience, purpose, goal, context]
+  # режим (immediate / exam) и подсказки (вкл/выкл) задаёт пресет: quizes/src/presets.yaml
+  # где quiz.py показывает подсказку отдельным пунктом: before — над вопросом, after — под ним
+  hint_position: after
+  # клавиша, по которой quiz.py показывает подсказку (варианты ответа — цифрами 1–9)
+  hint_key: h
+  # клавиша паузы: таймер вопроса останавливается, продолжить — любой клавишей
+  pause_key: p
+
+# Лог прохождения: один JSONL-файл на запуск, <dir>/<yymmdd-HHMMSS>-<тест>-<пользователь>.jsonl (в git)
+log:
+  # каталог логов относительно каталога теста
+  dir: logs
+  # кто проходит: os_git — пользователь ОС (+ git user.name/email), ask — спросить имя при старте,
+  # env — взять из переменной identity_env (без неё — ошибка)
+  identity: os_git
+  identity_env: QUIZ_USER
+
+# Языки теста: quiz.<язык>.md. Метки для разбора md и строки интерфейса quiz.py.
+# difficulties — в том же порядке, что quiz.difficulties (по индексу сопоставляются уровни).
+lang:
+  ru:
+    question: Вопрос
+    reserve: Резерв
+    hint: "Подсказка:"
+    explanation: "Разбор:"
+    topic: "Тема:"
+    answers: "Ответы:"
+    reserve_answers: "Ответы резерва:"
+    multi: "Несколько вариантов"
+    option_letters: "АБВГ"
+    difficulties: [простой, средний, сложный]
+    # промпт для ChatGPT / Claude по неверно решённому вопросу;
+    # поля: {title} {audience} {goal} {topic} {question} {options} {picked} {correct} {hints} {explanation}
+    prompt_failed: |
+      Я прохожу тест «{title}». Для кого тест: {audience}. Цель теста: {goal}.
+      Тема вопроса: {topic}.
+
+      Вопрос:
+      {question}
+
+      Варианты ответа:
+      {options}
+
+      Я выбрал(а): {picked}
+      Правильный ответ: {correct}
+      Подсказки из теста: {hints}
+      Краткий разбор из теста: {explanation}
+
+      Объясни простыми словами, почему мой ответ неверен, а правильный верен, и разбери каждый вариант.
+      Затем задай мне два похожих вопроса по этой теме, по одному: дождись моего ответа, проверь его и объясни ошибки.
+      Отвечай на русском.
+    ui:
+      language: "Язык / Language:"
+      question: "Вопрос {n}/{total} · {level}"
+      keys_pick: "цифры — выбрать"
+      keys_toggle: "цифры — отметить, пробел тоже"
+      keys_answer: "Enter — ответить"
+      keys_hint: "{key} — подсказка"
+      keys_hint_n: "{key} — подсказка {i}/{n}"
+      keys_pause: "{key} — пауза"
+      hint: "  • 💡 {text}"
+      hint_n: "  • 💡 {i}/{n} {text}"
+      pause: "⏸ Пауза — любая клавиша, чтобы продолжить"
+      right: "Верно: {right}"
+      explanation: "Разбор: {text}"
+      total: "Итог: {got} из {best}"
+      log: "Лог: {path}"
+      interrupted: "Прервано."
+      for_whom: "Для кого: {text}"
+      goal: "Цель: {text}"
+      duration: "Время: ~{n} мин"
+      ask_name: "Имя / ник:"
+      name_required: "Введите имя"
+      accepted: "Ответ принят."
+      prompt_header: "📋 Промпт для ChatGPT / Claude — скопируйте и вставьте, чтобы разобрать вопрос:"
+      prompts: "Промпты для разбора ошибок: {path}"
+      report_title: "Результаты по вопросам:"
+      report_row: "{n:>2}. {mark} {got}/{best}  {topic}"
+      report_wrong: "Разбор ошибок:"
+      report_question: "Вопрос {n}: {text}"
+  en:
+    question: Question
+    reserve: Reserve
+    hint: "Hint:"
+    explanation: "Explanation:"
+    topic: "Topic:"
+    answers: "Answers:"
+    reserve_answers: "Reserve answers:"
+    multi: "Select all that apply"
+    option_letters: "ABCD"
+    difficulties: [easy, medium, hard]
+    # prompt for ChatGPT / Claude for a question answered wrongly;
+    # fields: {title} {audience} {goal} {topic} {question} {options} {picked} {correct} {hints} {explanation}
+    prompt_failed: |
+      I am taking the quiz «{title}». Audience: {audience}. Goal of the quiz: {goal}.
+      Topic of the question: {topic}.
+
+      Question:
+      {question}
+
+      Options:
+      {options}
+
+      I chose: {picked}
+      Correct answer: {correct}
+      Hints from the quiz: {hints}
+      Short explanation from the quiz: {explanation}
+
+      Explain in simple words why my answer is wrong and the correct one is right, and go through every option.
+      Then ask me two similar questions on this topic, one at a time: wait for my answer, check it and explain my mistakes.
+      Answer in English.
+    ui:
+      language: "Язык / Language:"
+      question: "Question {n}/{total} · {level}"
+      keys_pick: "digits — choose"
+      keys_toggle: "digits — toggle, space too"
+      keys_answer: "Enter — answer"
+      keys_hint: "{key} — hint"
+      keys_hint_n: "{key} — hint {i}/{n}"
+      keys_pause: "{key} — pause"
+      hint: "  • 💡 {text}"
+      hint_n: "  • 💡 {i}/{n} {text}"
+      pause: "⏸ Paused — press any key to continue"
+      right: "Correct: {right}"
+      explanation: "Explanation: {text}"
+      total: "Score: {got} of {best}"
+      log: "Log: {path}"
+      interrupted: "Interrupted."
+      for_whom: "Audience: {text}"
+      goal: "Goal: {text}"
+      duration: "Time: ~{n} min"
+      ask_name: "Name / nickname:"
+      name_required: "Please enter a name"
+      accepted: "Answer recorded."
+      prompt_header: "📋 Prompt for ChatGPT / Claude — copy and paste it to work through this question:"
+      prompts: "Prompts for the failed questions: {path}"
+      report_title: "Results by question:"
+      report_row: "{n:>2}. {mark} {got}/{best}  {topic}"
+      report_wrong: "Mistakes — explanation and prompts:"
+      report_question: "Question {n}: {text}"

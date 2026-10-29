@@ -1,0 +1,62 @@
+# Базовые пресеты прохождения (общие). Пресеты теста лежат в quizes/<тест>/presets.yaml:
+# одноимённый пресет переопределяется по ключам, новые добавляются. После слияния в пресете обязательны ВСЕ ключи.
+#
+# description        краткое описание (показывается в меню выбора пресета)
+# mode               immediate — разбор после каждого ответа | exam — разбор и промпты только в конце
+# lang               ask — спросить при старте | ru | en (--lang в командной строке главнее)
+# sections           какие вопросы брать: main — основные, reserve — резерв
+# pick               как выбирать count вопросов из подходящих: first — первые | random — случайные
+# count              all — все подходящие | число
+# difficulty_min/max диапазон сложности (простой < средний < сложный), границы включаются
+# order              порядок вопросов: as_is — как в тесте | asc — от простых к сложным | desc — наоборот | random
+# topics             all — любые темы | список тем (на любом языке теста)
+# topic_order        mixed — не трогать | grouped — вопросы одной темы подряд
+# shuffle_options    true — перемешать варианты ответа в каждом вопросе
+# hints              false — отключить подсказки
+# seed               число — повторяемый выбор и перемешивание | null — случайный (значение пишется в лог)
+presets:
+  practice:
+    description: "Тренировка: все основные вопросы по порядку, разбор после каждого ответа"
+    mode: immediate
+    lang: ask
+    sections: [main]
+    pick: first
+    count: all
+    difficulty_min: простой
+    difficulty_max: сложный
+    order: as_is
+    topics: all
+    topic_order: mixed
+    shuffle_options: false
+    hints: true
+    seed: null
+  exam:
+    description: "Экзамен: основные вопросы от простых к сложным, варианты перемешаны, без подсказок, разбор в конце"
+    mode: exam
+    lang: ask
+    sections: [main]
+    pick: first
+    count: all
+    difficulty_min: простой
+    difficulty_max: сложный
+    order: asc
+    topics: all
+    topic_order: mixed
+    shuffle_options: true
+    hints: false
+    seed: null
+  drill:
+    description: "Отработка: основные и резервные вопросы средней и высокой сложности вперемешку, по темам"
+    mode: immediate
+    lang: ask
+    sections: [main, reserve]
+    pick: first
+    count: all
+    difficulty_min: средний
+    difficulty_max: сложный
+    order: random
+    topics: all
+    topic_order: grouped
+    shuffle_options: false
+    hints: true
+    seed: null

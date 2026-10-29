@@ -1,0 +1,225 @@
+# ClickHouse Certified Developer: objectives → docs map
+# Official objectives from clickhouse.com/learn/certification (verified 2026-10-15), ids are ours.
+# docs: Markdown versions of official pages (append nothing; they already end with .md).
+# course: module/lab of "Real-time Analytics with ClickHouse" (learn.clickhouse.com).
+# priority: H = explicit official objective; M = implied by an official one; L = course-only (not in official list).
+exam: ClickHouse Certified Developer
+version_checked: "2026-10-15 (local practice server 26.11)"
+weights: not published
+domains:
+  - id: D1
+    name: Modeling data
+    objectives:
+      - id: D1.1
+        text: Create databases and tables that meet given criteria or match a file format
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/reference/statements/create/table.md
+          - https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/mergetree.md
+          - https://clickhouse.com/docs/concepts/features/interfaces/schema-inference.md
+        keywords: "CREATE TABLE ... AS / EMPTY AS SELECT, DESCRIBE file(), schema inference, DEFAULT/MATERIALIZED/ALIAS columns"
+        course: "M1 Lab 1.2, M4"
+      - id: D1.2
+        text: Choose efficient column data types
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/concepts/best-practices/select-data-type.md
+          - https://clickhouse.com/docs/reference/data-types/lowcardinality.md
+          - https://clickhouse.com/docs/reference/data-types/nullable.md
+          - https://clickhouse.com/docs/reference/data-types/datetime64.md
+        keywords: "LowCardinality, avoid Nullable, smallest UInt/Int, Date vs DateTime, Decimal, Enum, toTypeName, min/max of column"
+        course: "M4 Lab 4.1"
+      - id: D1.3
+        text: Define an efficient primary key for a MergeTree table based on expected queries
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/concepts/best-practices/choosing-a-primary-key.md
+          - https://clickhouse.com/docs/guides/clickhouse/data-modelling/sparse-primary-indexes.md
+          - https://clickhouse.com/docs/concepts/core-concepts/primary-indexes.md
+        keywords: "ORDER BY vs PRIMARY KEY, low cardinality first, filter columns, granules 8192, EXPLAIN indexes = 1"
+        course: "M2 Lab 2.1"
+      - id: D1.4
+        text: Define and query a Dictionary
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/reference/statements/create/dictionary.md
+          - https://clickhouse.com/docs/reference/statements/create/dictionary/sources/clickhouse.md
+          - https://clickhouse.com/docs/reference/statements/create/dictionary/layouts/overview.md
+          - https://clickhouse.com/docs/reference/functions/regular-functions/ext-dict-functions.md
+          - https://clickhouse.com/docs/concepts/features/dictionaries/index.md
+        keywords: "CREATE DICTIONARY, SOURCE(CLICKHOUSE(TABLE ...)), LAYOUT(HASHED/FLAT/RANGE_HASHED), LIFETIME, dictGet, dictGetOrDefault, JOIN with dictionary"
+        course: "M6 Lab 6.1"
+      - id: D1.5
+        text: Partitioning, TTL, compression codecs (course-only)
+        priority: L
+        docs:
+          - https://clickhouse.com/docs/concepts/best-practices/partitioning-keys.md
+          - https://clickhouse.com/docs/reference/statements/create/table/codec.md
+          - https://clickhouse.com/docs/reference/statements/alter/ttl.md
+        course: "M4, M10"
+  - id: D2
+    name: Inserting data
+    objectives:
+      - id: D2.1
+        text: Insert data from local files and files in cloud storage
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/reference/statements/insert-into.md
+          - https://clickhouse.com/docs/reference/functions/table-functions/s3.md
+          - https://clickhouse.com/docs/reference/functions/table-functions/url.md
+          - https://clickhouse.com/docs/reference/functions/table-functions/file.md
+          - https://clickhouse.com/docs/get-started/quickstarts/insert-data-using-clickhouse-client.md
+        keywords: "INSERT INTO t FROM INFILE 'x.csv' FORMAT CSV, clickhouse-client --query ... < file, s3('https://...', 'Parquet'), s3Cluster, url()"
+        course: "M3 Labs 3.1-3.2"
+      - id: D2.2
+        text: Insert Parquet, CSV and TSV files
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/guides/clickhouse/data-formats/parquet.md
+          - https://clickhouse.com/docs/guides/clickhouse/data-formats/csv-tsv.md
+        keywords: "CSVWithNames, TabSeparatedWithNames, input_format_csv_*, format_csv_delimiter, input_format_allow_errors_num/ratio, skip header"
+        course: "M3 Lab 3.2 (imperfect CSV)"
+      - id: D2.3
+        text: Apply minor column transformations during insertion
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/reference/statements/insert-into.md
+          - https://clickhouse.com/docs/reference/functions/table-functions/input.md
+        keywords: "INSERT INTO t SELECT f(col) FROM s3(...), input() function, parseDateTimeBestEffort, toDecimal, splitByChar, nullIf, column list"
+      - id: D2.4
+        text: Insert data from one table into another
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/reference/statements/insert-into.md
+        keywords: "INSERT INTO t2 SELECT ... FROM t1, column order/names, settings for big copies"
+      - id: D2.5
+        text: Async inserts, batching, ClickPipes (course-only)
+        priority: L
+        docs:
+          - https://clickhouse.com/docs/concepts/features/operations/insert/asyncinserts.md
+        course: "M2, M3"
+  - id: D3
+    name: Analyzing data
+    objectives:
+      - id: D3.1
+        text: Write queries that meet given criteria
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/reference/statements/select/group-by.md
+          - https://clickhouse.com/docs/reference/statements/select/join.md
+          - https://clickhouse.com/docs/reference/functions/window-functions/index.md
+        keywords: "WHERE/HAVING, ORDER BY ... LIMIT n BY, WITH, subqueries, IN, JOIN basics"
+        course: "M5 Lab 5.1"
+      - id: D3.2
+        text: Use regular functions, e.g. substring search and timestamp bucketing
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/reference/functions/regular-functions/string-search-functions.md
+          - https://clickhouse.com/docs/reference/functions/regular-functions/date-time-functions.md
+        keywords: "position, like/ilike, match, multiSearchAny, hasToken, toStartOfInterval, toStartOfHour/Day/Week/Month, dateDiff, formatDateTime"
+      - id: D3.3
+        text: Use aggregate functions such as min, max, sum, avg, unique counts and quantiles
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/reference/functions/aggregate-functions/reference-index.md
+          - https://clickhouse.com/docs/reference/functions/aggregate-functions/uniq.md
+          - https://clickhouse.com/docs/reference/functions/aggregate-functions/uniqExact.md
+          - https://clickhouse.com/docs/reference/functions/aggregate-functions/quantile.md
+          - https://clickhouse.com/docs/reference/functions/aggregate-functions/quantiles.md
+          - https://clickhouse.com/docs/reference/functions/aggregate-functions/combinators.md
+        keywords: "uniq vs uniqExact, quantile(0.9)(x), quantiles(0.5,0.9), countIf/sumIf, argMax, topK"
+      - id: D3.4
+        text: Use GROUP BY to bucket aggregated results by timeframe or other criteria
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/reference/statements/select/group-by.md
+          - https://clickhouse.com/docs/reference/functions/regular-functions/date-time-functions.md
+        keywords: "GROUP BY toStartOfInterval(ts, INTERVAL 15 MINUTE), WITH ROLLUP/CUBE/TOTALS, ORDER BY ... WITH FILL"
+      - id: D3.5
+        text: JOIN algorithms, window functions, UDFs (course-only)
+        priority: L
+        docs:
+          - https://clickhouse.com/docs/concepts/features/operations/select/joining-tables.md
+        course: "M5, M6"
+  - id: D4
+    name: Optimizing query performance
+    objectives:
+      - id: D4.1
+        text: Define materialized views for non-aggregation queries
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/concepts/features/materialized-views/incremental-materialized-view.md
+          - https://clickhouse.com/docs/reference/statements/create/view.md
+          - https://clickhouse.com/docs/concepts/features/materialized-views/refreshable-materialized-view.md
+        keywords: "CREATE MATERIALIZED VIEW mv TO target AS SELECT, POPULATE vs backfill INSERT ... SELECT, MV re-sorts data with a different ORDER BY, refreshable REFRESH EVERY"
+        course: "M8 Labs 8.1-8.2"
+      - id: D4.2
+        text: Define materialized views for aggregations using AggregatingMergeTree or SummingMergeTree
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/aggregatingmergetree.md
+          - https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/summingmergetree.md
+          - https://clickhouse.com/docs/reference/functions/aggregate-functions/combinators.md
+        keywords: "AggregateFunction(uniq, T), SimpleAggregateFunction, -State on insert, -Merge on read, sum() again on SummingMergeTree reads"
+        course: "M8 Labs 8.3-8.4"
+      - id: D4.3
+        text: Define projections on tables
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/concepts/features/projections/projections.md
+          - https://clickhouse.com/docs/reference/statements/alter/projection.md
+          - https://clickhouse.com/docs/get-started/quickstarts/create-your-first-projection.md
+          - https://clickhouse.com/docs/concepts/features/projections/materialized-views-versus-projections.md
+        keywords: "ALTER TABLE ADD PROJECTION p (SELECT ... ORDER BY ...), MATERIALIZE PROJECTION, aggregating projections, system.projections, lightweight_mutation_projection_mode"
+        course: "M8 Lab 8.5"
+      - id: D4.4
+        text: Define set or minmax skipping indexes
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/concepts/features/performance/skip-indexes/skipping-indexes.md
+          - https://clickhouse.com/docs/concepts/features/performance/skip-indexes/skipping-indexes-examples.md
+        keywords: "INDEX idx col TYPE minmax GRANULARITY n, TYPE set(100), ALTER TABLE ADD INDEX + MATERIALIZE INDEX, system.data_skipping_indices, EXPLAIN indexes = 1"
+        course: "M8 Lab 8.6"
+      - id: D4.5
+        text: EXPLAIN, query_log, PREWHERE (supporting skills)
+        priority: M
+        docs:
+          - https://clickhouse.com/docs/reference/statements/explain.md
+          - https://clickhouse.com/docs/reference/system-tables/query_log.md
+          - https://clickhouse.com/docs/concepts/features/performance/prewhere.md
+  - id: D5
+    name: Deduplication and mutations
+    objectives:
+      - id: D5.1
+        text: Perform lightweight deletes
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/concepts/features/operations/delete/lightweight-delete.md
+          - https://clickhouse.com/docs/reference/statements/delete.md
+        keywords: "DELETE FROM t WHERE ..., _row_exists, projections need lightweight_mutation_projection_mode, vs ALTER TABLE DELETE"
+        course: "M7"
+      - id: D5.2
+        text: Implement efficient upserts with ReplacingMergeTree
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/replacingmergetree.md
+          - https://clickhouse.com/docs/concepts/features/operations/update/replacing-merge-tree.md
+        keywords: "ReplacingMergeTree(ver[, is_deleted]), ORDER BY = dedup key, SELECT ... FINAL, OPTIMIZE ... FINAL (avoid in prod), argMax pattern"
+        course: "M7 Lab 7.1"
+      - id: D5.3
+        text: Implement efficient frequent updates with CollapsingMergeTree
+        priority: H
+        docs:
+          - https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/collapsingmergetree.md
+          - https://clickhouse.com/docs/reference/engines/table-engines/mergetree-family/versionedcollapsingmergetree.md
+        keywords: "CollapsingMergeTree(sign), cancel row (sign = -1) + new state (sign = 1), sum(x * sign) ... HAVING sum(sign) > 0, FINAL"
+        course: "M7 Lab 7.2"
+      - id: D5.4
+        text: Mutations and insert deduplication (supporting)
+        priority: M
+        docs:
+          - https://clickhouse.com/docs/reference/statements/alter/update.md
+          - https://clickhouse.com/docs/reference/statements/alter/delete.md
+          - https://clickhouse.com/docs/reference/system-tables/mutations.md
+          - https://clickhouse.com/docs/concepts/best-practices/avoid-mutations.md
+          - https://clickhouse.com/docs/concepts/features/operations/insert/deduplication.md

@@ -1,0 +1,11 @@
+CREATE TABLE countries (id UInt64, name String) ENGINE=MergeTree ORDER BY id;
+INSERT INTO countries VALUES (1,'DE');
+CREATE DICTIONARY dict_country (id UInt64, name String) PRIMARY KEY id SOURCE(CLICKHOUSE(TABLE 'countries')) LAYOUT(FLAT()) LIFETIME(300);
+SELECT 'joinGet'; SELECT joinGet('dict_country','name',toUInt64(1));
+SELECT 'unquoted'; SELECT dictGet(dict_country, name, toUInt64(1));
+SELECT 'ok'; SELECT dictGet('dict_country','name',toUInt64(1));
+SELECT 'swap'; CREATE TABLE rr3 (id UInt64, updated_at DateTime, is_deleted UInt8) ENGINE=ReplacingMergeTree(is_deleted, updated_at) ORDER BY id;
+CREATE TABLE t (a UInt8, b String) ENGINE=MergeTree ORDER BY a;
+SELECT 'infile'; INSERT INTO t FROM INFILE '/tmp/events.tsv.gz' COMPRESSION 'gzip' FORMAT TabSeparated;
+SELECT count() FROM t;
+SELECT 'bad-order'; INSERT INTO t FORMAT TabSeparated FROM INFILE '/tmp/events.tsv.gz';
