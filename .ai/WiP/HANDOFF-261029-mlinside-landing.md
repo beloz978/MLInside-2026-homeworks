@@ -4,30 +4,27 @@ Goal: merge and remove all possible branches in `beloz978/MLInside-2026-homework
 
 ## open_tasks_with_keys
 
-- [ ] Push `feat/make-ux-port`: local merge commit `ef6cff5` (merge of origin/main 5f1bdaf into the port); `origin/feat/make-ux-port` is still at `181ab23`, so the branch is ahead 3. Worktree: `/private/tmp/claude-501/makeux-port`.
-- [ ] Open the PR `feat/make-ux-port` → `main` as `beloz978` (title: `feat(dbt): make run loop, wizard profile/repo/PR checks, doctor 💡 hints`). First check `gh pr list` for an existing PR: the earlier create call's result was lost.
-- [ ] Squash-merge that PR once it is MERGEABLE, then delete its remote and local branch.
-- [ ] Delete superseded local branches `docs/quizes`, `feat/dagster-stage0`, `feat/make-ux`, and merged `feat/dagster-checker`, `feat/make-ux-port`. Backups are the tags below.
-- [ ] Remove clean temp worktrees `/private/tmp/claude-501/dagster-land` and `.claude/worktrees/quizes-main`, and `/private/tmp/claude-501/makeux-port` after the PR merges.
-- [ ] Delete stale remote `docs/test-4-dagster-questions` (and check `origin/docs/test-4-dagster-questions-v2` is gone).
-- [ ] Push `~/.ai` branches `fix/github-cli-cwd` and `feat/git-status-skill`, then open PRs as `hnkovr`.
+- [ ] Remove the locked `make-ux` worktree (`/Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/make-ux`, HEAD 97a14c7, clean). Unlock + `worktree remove` was denied by the auto-mode classifier ("Interfere With Workloads"): it is locked by another session. Needs the user's decision. Then `git branch -d feat/make-ux` (content already in main; backup tag `backup/feat-make-ux-261029`).
+- [ ] Push `~/.ai` branches `fix/github-cli-cwd` and `feat/git-status-skill`, then open PRs as `hnkovr`. Denied earlier by auto mode (outward-facing). Needs the user's explicit OK.
+- [ ] Main checkout `/Users/user/gi/@beloz978/MLInside-2026-homeworks` is still at 43c6d14; origin/main is 4dbe17a. Fast-forward is blocked by an untracked `.ai/TODO.md` there (different content from main, probably another session's local state). Needs the user's decision before moving it.
+- [ ] Local `docs/test-4-dagster-questions` (this session's worktree, holds commit 8bb942a) has no upstream now that the stale remote was deleted. Push or drop after the session ends.
 
 ## done_with_commit_shas
 
-- PR #4 (wizard, make-run) squash-merged → `43c6d14` on main.
-- PR #5 (test-4 Dagster quiz) squash-merged → `c3a3d89` on main.
-- PR #7 (Dagster checker, rebased after #5) squash-merged → `5f1bdaf` on main.
+- PR #4 squash-merged → `43c6d14` on main.
+- PR #5 squash-merged → `c3a3d89` on main.
+- PR #7 squash-merged → `5f1bdaf` on main.
+- PR #8 (make-ux port, `feat/make-ux-port`) squash-merged → `4dbe17a` on main.
 - Cert quizzes 11–13 committed in `da54777` (private material moved to `.recyclebin/`, not published).
-- Backup tags (tips of deleted branches): `backup/docs-quizes-261029` (2bf8ab2), `backup/feat-dagster-stage0-261029` (35e993a), `backup/feat-make-ux-261029` (97a14c7).
-- Test runs on the make-ux port merge: dbt 54/54, Dagster 22/22 (Dagster via `.claude/worktrees/quizes-main/Dagster/.venv`).
+- Local branches deleted, each verified content-identical to main (0 differing files), with backup tags: `docs/quizes` (`backup/docs-quizes-261029`, 2bf8ab2), `feat/dagster-stage0` (`backup/feat-dagster-stage0-261029`, 9fec47e), `feat/dagster-checker` (`backup/feat-dagster-checker-261029`, fa0a5d9), `feat/make-ux-port` (`backup/feat-make-ux-port-261029`, ef6cff5).
+- Worktrees removed (clean): `/private/tmp/claude-501/dagster-land`, `/private/tmp/claude-501/makeux-port`, `.claude/worktrees/quizes-main`.
+- Stale remote `origin/docs/test-4-dagster-questions` deleted (content in main via #5).
+- Tests before the port merge: dbt 54/54, Dagster 22/22.
 
 ## unresolved_with_reason
 
-- `make-ux` worktree is locked by another session. Removal and `git branch -D` were denied by the auto-mode classifier, so they need the user's approval.
-- `~/.ai` pushes and PRs were denied by auto mode (outward-facing). They need the user's explicit OK.
-- The `make-ux-port` PR was not opened yet because the create call's result was lost; verify before creating.
-- `test-4-dagster` is this session's own worktree. Remove it after the session ends.
+- See the open tasks above: the locked worktree (another session), the `~/.ai` PRs (outward-facing, denied), and the main-checkout fast-forward (untracked `.ai/TODO.md` conflict).
 
 ## resume_cli
 
-`git -C /private/tmp/claude-501/makeux-port push origin feat/make-ux-port`
+`git -C /Users/user/gi/@beloz978/MLInside-2026-homeworks status --porcelain && git -C /Users/user/gi/@beloz978/MLInside-2026-homeworks branch -a`
