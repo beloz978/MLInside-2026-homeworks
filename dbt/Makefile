@@ -17,7 +17,7 @@ setup: ## 1. Создать .venv и поставить зависимости (
 	uv pip install --python $(PY) -r config/requirements.txt
 
 wizard: ## 2. Мастер настройки: GitHub, путь к проекту, Postgres/ClickHouse -> .env
-	$(PY) scripts/wizard.py
+	$(PY) scripts/wizard.py $(WIZARD_ARGS)
 
 seeds: ## 3. Скачать Olist через kagglehub в seeds/ вашего проекта (затем dbt seed)
 	$(PY) scripts/fetch_olist_seeds.py --only-missing
