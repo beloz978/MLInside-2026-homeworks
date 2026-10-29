@@ -6,7 +6,7 @@ Goal: merge and remove all possible branches in `beloz978/MLInside-2026-homework
 
 - [ ] Remove the locked `make-ux` worktree (`/Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/make-ux`, HEAD 97a14c7, clean). Unlock + `worktree remove` was denied by the auto-mode classifier ("Interfere With Workloads"): it is locked by another session. Needs the user's decision. Then `git branch -d feat/make-ux` (content already in main; backup tag `backup/feat-make-ux-261029`).
 - [ ] Push `~/.ai` branches `fix/github-cli-cwd` and `feat/git-status-skill`, then open PRs as `hnkovr`. Denied earlier by auto mode (outward-facing). Needs the user's explicit OK.
-- [ ] Main checkout `/Users/user/gi/@beloz978/MLInside-2026-homeworks` is still at 43c6d14; origin/main is 4dbe17a. Fast-forward is blocked by an untracked `.ai/TODO.md` there (different content from main, probably another session's local state). Needs the user's decision before moving it.
+- [x] Main checkout fast-forwarded 43c6d14 → 4dbe17a. The untracked 282-byte stale `.ai/TODO.md` stub (last modified 2026-10-16) was moved to `.recyclebin/main-untracked-TODO-261029.md`, not deleted.
 - [ ] Local `docs/test-4-dagster-questions` (this session's worktree, holds commit 8bb942a) has no upstream now that the stale remote was deleted. Push or drop after the session ends.
 
 ## done_with_commit_shas
