@@ -1,0 +1,25 @@
+# Запуск теста из этого каталога: `just` (= just run). Общий код — ../src.
+dir := justfile_directory()
+src := dir / "../src"
+
+default: run
+
+# Пройти тест (preset — имя пресета, lang — ru или en; без них спросят при старте)
+run preset="exam" lang="":
+    uv run --with questionary --with pyyaml python {{src}}/quiz.py {{dir}} {{ if preset != "" { "--preset " + preset } else { "" } }} {{ if lang != "" { "--lang " + lang } else { "" } }}
+
+# Список пресетов этого теста
+presets:
+    uv run --with questionary --with pyyaml python {{src}}/quiz.py {{dir}} --list-presets
+
+# quiz.<язык>.md → quiz.yaml с самопроверкой (section — заголовок раздела, если нужен только он)
+yaml section="":
+    uv run --with pyyaml python {{src}}/md2yaml.py {{dir}} {{ if section != "" { quote(section) } else { "" } }}
+
+# Последние логи прохождений
+logs:
+    @ls -t {{dir}}/logs/*.jsonl 2>/dev/null | head -10 || echo "логов пока нет"
+
+# Тесты кода (общие для всех тестов)
+test:
+    uv run --with questionary --with pyyaml --with pytest pytest {{src}}/test_quiz.py

@@ -1,0 +1,10 @@
+CREATE TABLE events (ts DateTime, user_id UInt64, url String, domain String) ENGINE=MergeTree ORDER BY ts;
+SELECT 'A'; INSERT INTO events SELECT * FROM file('/tmp/e.csv','CSVWithNames');
+SELECT 'D'; INSERT INTO events SELECT ts_unix, user_id, url, domain(url) FROM file('/tmp/e.csv','CSVWithNames');
+SELECT * FROM events;
+TRUNCATE TABLE events;
+SELECT 'C'; INSERT INTO events (ts, user_id, url) SELECT * FROM file('/tmp/e.csv','CSVWithNames');
+SELECT * FROM events;
+TRUNCATE TABLE events;
+SELECT 'B'; INSERT INTO events SELECT toDateTime(ts_unix), user_id, url, domain(url) FROM file('/tmp/e.csv','CSVWithNames');
+SELECT * FROM events;

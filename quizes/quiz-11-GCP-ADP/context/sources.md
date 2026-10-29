@@ -1,0 +1,17 @@
+# Источники
+- Страница экзамена: https://cloud.google.com/learn/certification/data-practitioner
+- Exam guide v1.0: https://services.google.com/fh/files/misc/v1.0_associate_data_practitioner_exam_guide_english.pdf
+- Exam Terms & Conditions: https://cloud.google.com/certification/terms
+- Misconduct: https://support.google.com/cloud-certification/answer/9908051
+- BigQuery external tables: https://docs.cloud.google.com/bigquery/docs/external-tables
+- BigLake (Lakehouse) tables: https://docs.cloud.google.com/bigquery/docs/biglake-intro
+- Cached results: https://docs.cloud.google.com/bigquery/docs/cached-results
+- Cost best practices: https://docs.cloud.google.com/bigquery/docs/best-practices-costs
+- BigQuery pricing: https://cloud.google.com/bigquery/pricing
+- Column-level access control: https://docs.cloud.google.com/bigquery/docs/column-level-security-intro
+- Data masking: https://docs.cloud.google.com/bigquery/docs/column-data-masking-intro
+- Lakehouse (ex-BigLake): https://docs.cloud.google.com/lakehouse/docs/introduction
+- ClickHouse + Lakehouse runtime catalog: https://clickhouse.com/docs/use-cases/data-lake/biglake-catalog
+- BigQuery ClickPipe (preview): https://clickhouse.com/blog/bigquery-clickpipe-private-preview
+- Dataflow BigQuery → ClickHouse: https://cloud.google.com/dataflow/docs/guides/templates/provided/bigquery-to-clickhouse
+- ClickHouse Cloud pricing: https://clickhouse.com/pricing

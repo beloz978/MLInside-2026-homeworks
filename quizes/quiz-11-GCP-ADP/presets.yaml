@@ -1,0 +1,43 @@
+# Пресеты теста 11 поверх quizes/src/presets.yaml. Первый в меню и в Justfile по умолчанию — exam.
+# exam максимально повторяет реальный ADP: 60 вопросов, случайный порядок (на экзамене вопросы не отсортированы
+# по сложности), домены вперемешку, варианты перемешаны, без подсказок, без разбора до конца, язык ru-файла.
+presets:
+  exam:
+    description: "Экзамен ADP: 60 вопросов, ~120 минут, случайный порядок, варианты перемешаны, без подсказок, разбор в конце"
+    lang: ru
+    order: random
+    topic_order: mixed
+  practice:
+    lang: ru
+  drill:
+    lang: ru
+  domain-s4:
+    description: "Тренировка слабого домена S4 Data management (15 вопросов), разбор после каждого ответа"
+    mode: immediate
+    lang: ru
+    sections: [main]
+    pick: first
+    count: all
+    difficulty_min: простой
+    difficulty_max: сложный
+    order: random
+    topics: ["S4 Data management"]
+    topic_order: mixed
+    shuffle_options: true
+    hints: false
+    seed: null
+  mini-exam:
+    description: "Мини-экзамен: 20 случайных вопросов (~40 минут), разбор в конце"
+    mode: exam
+    lang: ru
+    sections: [main]
+    pick: random
+    count: 20
+    difficulty_min: простой
+    difficulty_max: сложный
+    order: random
+    topics: all
+    topic_order: mixed
+    shuffle_options: true
+    hints: false
+    seed: null

@@ -1,0 +1,36 @@
+# Пресеты теста 12 поверх базовых (../src/presets.yaml): одноимённые переопределяются по ключам, новые добавляются.
+# Пресет по умолчанию — exam (его же запускают `just` и `make quiz 12`); остальные выбираются через `just run <пресет>`.
+presets:
+  exam:
+    description: "Экзамен ClickHouse: 12 основных вопросов в случайном порядке, варианты перемешаны, без подсказок, разбор в конце; ориентир — 120 минут и порог 70% (9 из 12)"
+    order: random
+  retake:
+    description: "Пересдача: 6 резервных вопросов в экзаменационном режиме (без подсказок, разбор в конце)"
+    mode: exam
+    lang: ask
+    sections: [reserve]
+    pick: first
+    count: all
+    difficulty_min: простой
+    difficulty_max: сложный
+    order: random
+    topics: all
+    topic_order: mixed
+    shuffle_options: true
+    hints: false
+    seed: null
+  weak-areas:
+    description: "Слабые места: основные и резервные вопросы по оптимизации и дедупликации, разбор после каждого ответа"
+    mode: immediate
+    lang: ask
+    sections: [main, reserve]
+    pick: first
+    count: all
+    difficulty_min: простой
+    difficulty_max: сложный
+    order: as_is
+    topics: ["Оптимизация", "Дедупликация и мутации"]
+    topic_order: grouped
+    shuffle_options: false
+    hints: true
+    seed: null

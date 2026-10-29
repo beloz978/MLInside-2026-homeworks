@@ -1,0 +1,1780 @@
+langs:
+- ru
+title:
+  ru: Тест 13. dbt Analytics Engineering Certification (cert exam)
+meta:
+  ru:
+    audience: Data engineers и аналитики, готовящиеся к dbt Analytics Engineering Certification (dbt Core 1.11)
+    purpose: 'Полноразмерный пробный экзамен dbt AE: 65 сценарных вопросов на английском с разбором на русском, формат и время как на экзамене'
+    goal: Выбирать конфигурацию, команду или тест dbt под задачу — incremental и microbatch, snapshots, contracts и versions, unit и data tests, отладка, source freshness, state и slim CI
+    context: 'Study guide dbt 1.11, семь доменов (веса dbt Labs не публикует); экзамен: 65 вопросов, 120 минут, проходной балл 65%; проект MyCerts; материалы сессии — в каталоге session/'
+    prerequisites: SQL, 6+ месяцев работы с dbt (models, ref/source, tests, incremental)
+    duration_min: 120
+questions:
+- id: q1
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D1 · Incremental strategies
+  text:
+    ru: Your `fct_orders` model runs on Snowflake and holds about 200 million rows. Each night the source delivers new orders and orders whose status changed; `order_id` is unique. You want each nightly run to process only new and changed rows and to keep exactly one row per order. What should you do?
+  options:
+  - text:
+      ru: Materialize the model as `table`, so that every run rebuilds it from the full source data
+    correct: false
+  - text:
+      ru: Use an incremental model with `incremental_strategy='append'` and filter on the last update time
+    correct: false
+  - text:
+      ru: Use an incremental model with `unique_key='order_id'` and filter on the last update time
+    correct: true
+  - text:
+      ru: Materialize the model as `ephemeral` and let the downstream models select from it
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D1. Incremental с `unique_key` на Snowflake по умолчанию использует стратегию `merge`: новые строки вставляются, изменённые обновляются по `order_id`. `append` только добавляет строки и даст дубликаты изменённых заказов. `table` работает, но каждый раз пересчитывает все 200 млн строк, а `ephemeral` вообще не создаёт объект в хранилище (модель встраивается как CTE).'
+- id: q2
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D5 · Unit tests
+  text:
+    ru: The `stg_vacancies` model parses free-text salary strings with CASE expressions and regex into `salary_min` and `salary_max`. Before merging a change, you want to verify the parsing logic on a few hand-written inputs, including edge cases that do not exist in production data yet. What should you do?
+  options:
+  - text:
+      ru: Write a singular test that selects rows from the production table where `salary_min > salary_max`
+    correct: false
+  - text:
+      ru: Add an `accepted_values` test on `salary_currency` in the properties file of the model
+    correct: false
+  - text:
+      ru: Run `dbt source freshness` on the raw vacancies table before every deployment
+    correct: false
+  - text:
+      ru: Define a `unit_tests` entry with mocked `given` rows and the expected rows in `expect`
+    correct: true
+  hints:
+    ru: []
+  explanation:
+    ru: 'D5. Unit test (dbt 1.8+) описывается в YAML: `model`, `given` (mock-строки для `ref`/`source`) и `expect` (ожидаемый результат). Он проверяет логику SQL на заданных примерах, включая граничные случаи, и запускается `dbt test --select test_type:unit` (в `dbt build` — до сборки модели). Singular и generic data tests проверяют реальные данные уже после сборки, а source freshness проверяет только свежесть загрузки.'
+- id: q3
+  section: main
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D1 · --empty
+  text:
+    ru: You refactored a chain of 30 models and want to quickly confirm that all of them build with the expected columns and types, without reading production data and without paying for full table scans. What should you do?
+  options:
+  - text:
+      ru: Run `dbt build --empty`
+    correct: true
+  - text:
+      ru: Run `dbt compile` and read the compiled SQL files of the changed models
+    correct: false
+  - text:
+      ru: Run `dbt run --full-refresh` against a development schema
+    correct: false
+  - text:
+      ru: Run `dbt parse` and check that the command finishes without errors
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D1. `--empty` ограничивает `ref()` и `source()` нулём строк (`limit 0`), поэтому модели реально создаются в хранилище со своей схемой, но данные не читаются и стоимость минимальна. `compile` и `parse` в хранилище ничего не создают и не проверяют типы колонок, а `--full-refresh` пересчитает все данные.
+- id: q4
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D3 · compiled vs run
+  text:
+    ru: 'A `dbt run` fails with `Database Error in model stg_vacancies: syntax error at or near "AS"`. The compiled SELECT looks fine, so you suspect the statement that dbt wraps around it for the materialization. Which file shows the exact statement that dbt sent to the warehouse, including the `create table ... as` wrapper?'
+  options:
+  - text:
+      ru: '`models/staging/stg_vacancies.sql`'
+    correct: false
+  - text:
+      ru: '`target/compiled/my_project/models/staging/stg_vacancies.sql`'
+    correct: false
+  - text:
+      ru: '`target/run/my_project/models/staging/stg_vacancies.sql`'
+    correct: true
+  - text:
+      ru: '`target/catalog.json`'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D3. `target/compiled/` содержит SQL после рендера Jinja (только SELECT), а `target/run/` — полный запрос, отправленный в хранилище: с `create table ... as`, `merge` и т.п. Исходный `.sql` содержит ещё не отрендеренный Jinja, а `catalog.json` — метаданные из `dbt docs generate`, а не SQL. Подробности ошибки есть и в `logs/dbt.log`.'
+- id: q5
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D2 · Model contracts
+  text:
+    ru: The `dim_employers` model is public and used by several BI dashboards. A recent change renamed one column and changed the type of another, and the dashboards broke. You want dbt to fail the build before the model is materialized whenever its output does not match the agreed columns and data types. What should you do?
+  options:
+  - text:
+      ru: Add `not_null` and `unique` data tests to every column of the model in its properties file
+    correct: false
+  - text:
+      ru: 'Set `contract: {enforced: true}` and declare every column with its `data_type` in YAML'
+    correct: true
+  - text:
+      ru: 'Set `on_schema_change: sync_all_columns` in the config block of the model'
+    correct: false
+  - text:
+      ru: 'Set `access: public` and assign the model to a `group` in the properties file'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D2. С `contract.enforced: true` dbt сравнивает имена и типы колонок результата с описанием в YAML до создания объекта и падает при расхождении; для каждой колонки нужен `data_type`. Data tests проверяют значения уже после сборки, `on_schema_change` относится к incremental-моделям и меняет схему, а не защищает её, `access` и `group` управляют только тем, кто может делать `ref` на модель.'
+- id: q6
+  section: main
+  multi: true
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+  topic:
+    ru: D1 · Microbatch
+  text:
+    ru: Your `events` source table holds five years of data (about 3 billion rows) with an `event_ts` column. You want dbt to process the data in independent daily batches, so that a failed day can be retried and one month can be reprocessed without touching other months. Which two actions should you take? (Choose two.)
+  options:
+  - text:
+      ru: Configure `incremental_strategy='microbatch'` with `event_time='event_ts'`, `batch_size='day'`, and `begin`
+    correct: true
+  - text:
+      ru: Add an `is_incremental()` filter on `max(event_ts)` inside the model SQL
+    correct: false
+  - text:
+      ru: Set `unique_key='event_id'` and use the `delete+insert` strategy
+    correct: false
+  - text:
+      ru: Re-run the model with `--event-time-start` and `--event-time-end` covering that month
+    correct: true
+  - text:
+      ru: Run `dbt run --full-refresh --select` for the model
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D1. Microbatch делит модель на независимые батчи по `event_time` (`batch_size`, `begin`); каждый батч — отдельный запрос, и упавший батч можно повторить. Пересчёт месяца делается флагами `--event-time-start` / `--event-time-end`. Фильтр `is_incremental()` в microbatch-модели не нужен (dbt сам ограничивает входы по `event_time`), `delete+insert` с `unique_key` не режет данные на батчи по времени, а `--full-refresh` пересоберёт все пять лет.
+- id: q7
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟩 понимание
+  topic:
+    ru: D5 · Custom generic tests
+  text:
+    ru: You need one reusable test, `is_positive`, that can be applied to many numeric columns from YAML (for example `salary_min` and `salary_max`). Where should you define it?
+  options:
+  - text:
+      ru: In `tests/is_positive.sql` as a plain SELECT that returns the failing rows of one table and one column
+    correct: false
+  - text:
+      ru: In `tests/generic/is_positive.sql` as a `{% test is_positive(model, column_name) %}` block
+    correct: true
+  - text:
+      ru: In `seeds/is_positive.csv` with one row for each column that must be checked
+    correct: false
+  - text:
+      ru: In `dbt_project.yml` under `vars`, as a SQL string with placeholders for table and column
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D5. Custom generic test — это блок `{% test имя(model, column_name) %}` в `tests/generic/` (или в macros); его подключают в `data_tests` любой колонки. SELECT в `tests/` — singular test: он привязан к конкретным таблице и колонке и запускается один раз. Seeds и `vars` тестами не являются.'
+- id: q8
+  section: main
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+  topic:
+    ru: D7 · Slim CI
+  text:
+    ru: CI builds each pull request into an empty schema. A PR changes only `int_orders`; `stg_orders` (upstream of it) and `fct_orders` (downstream of it) are unchanged. The production `manifest.json` is saved in `./prod-artifacts`. You want CI to build only the changed model and everything downstream of it, and to resolve unchanged upstream models to production. Which command should you run?
+  options:
+  - text:
+      ru: '`dbt build --select state:modified+ --state ./prod-artifacts`'
+    correct: false
+  - text:
+      ru: '`dbt build --select state:modified+ --defer --state ./prod-artifacts`'
+    correct: true
+  - text:
+      ru: '`dbt build --select state:modified --defer --state ./prod-artifacts`'
+    correct: false
+  - text:
+      ru: '`dbt build --select +state:modified --defer --state ./prod-artifacts`'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D7. `state:modified+` выбирает изменённые узлы и всех их потомков, `--state` указывает каталог с артефактами prod, а `--defer` подставляет prod-объекты вместо не собранных в CI родителей. Без `--defer` (вариант А) `int_orders` не найдёт `stg_orders` в пустой схеме CI. Без `+` (В) пропадёт `fct_orders`. С `+` слева (Г) соберутся все предки, а потомки не попадут в выборку.
+- id: q9
+  section: main
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+  topic:
+    ru: D4 · Failure in the DAG
+  text:
+    ru: A nightly `dbt build` runs with default settings. The `not_null` test (severity `error`) on `stg_orders.order_id` fails. `fct_orders` depends on `stg_orders`; `dim_employers` sits in an unrelated branch of the DAG. What happens next?
+  options:
+  - text:
+      ru: Nodes downstream of `stg_orders` are skipped, while the unrelated branch keeps building
+    correct: true
+  - text:
+      ru: dbt stops immediately and rolls back all models that were already built in this run in the warehouse
+    correct: false
+  - text:
+      ru: dbt builds all remaining nodes and reports the failed test only in the final summary
+    correct: false
+  - text:
+      ru: dbt retries the failed test once and then continues with `fct_orders` if it passes
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D4. В `dbt build` тест — узел DAG: при его ошибке потомки не выполняются и получают статус SKIP, а несвязанные ветки продолжают собираться. Остановка всего запуска происходит только с `--fail-fast`, и даже тогда уже созданные объекты не откатываются. Автоматических повторов нет: упавшее и пропущенное перезапускают через `dbt retry`. Чтобы не блокировать потомков, тесту ставят `severity: warn`.'
+- id: q10
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D6 · Source freshness
+  text:
+    ru: Your ingestion job loads the table `raw.vacancies` and stamps each row with `_loaded_at`. You want dbt to report a warning when no new rows arrived for 6 hours and an error after 24 hours. What should you do?
+  options:
+  - text:
+      ru: Add a `not_null` test on `_loaded_at` in the source properties and run `dbt test` every morning
+    correct: false
+  - text:
+      ru: Add `freshness` settings with the same thresholds to the source properties file, but run only `dbt run`, because it evaluates source freshness automatically after building the models
+    correct: false
+  - text:
+      ru: Run `dbt build --select source:raw`, which checks the freshness of the selected sources
+    correct: false
+  - text:
+      ru: 'Set `loaded_at_field` and `freshness` with `warn_after: {count: 6, period: hour}` and `error_after: {count: 24, period: hour}`, then run `dbt source freshness`'
+    correct: true
+  hints:
+    ru: []
+  explanation:
+    ru: 'D6. Source freshness задаётся у source (или таблицы): `loaded_at_field` и `freshness` с `warn_after` / `error_after` в виде `{count: N, period: minute|hour|day}`; проверяется отдельной командой `dbt source freshness`, результат пишется в `sources.json`. `not_null` не измеряет возраст данных, а `dbt run` и `dbt build` свежесть источников не проверяют.'
+- id: q11
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D1 · Config precedence
+  text:
+    ru: 'In `dbt_project.yml`, the folder `models/marts` sets `+materialized: view`. The properties file for `fct_vacancies` sets `config: {materialized: table}`, and the SQL file of the model starts with `{{ config(materialized=''incremental'') }}`. How will dbt materialize `fct_vacancies`?'
+  options:
+  - text:
+      ru: As a view, because `dbt_project.yml` sets the default for the whole folder
+    correct: false
+  - text:
+      ru: As a table, because the properties file overrides the config in the SQL file
+    correct: false
+  - text:
+      ru: As an incremental model, because the `config()` block in the SQL file wins
+    correct: true
+  - text:
+      ru: dbt raises a compilation error because the same config is set in three places
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D1. Приоритет конфигов: `config()` в `.sql` > `config:` в properties YAML > `dbt_project.yml`. Побеждает самый конкретный уровень, а повторное определение ошибкой не считается.'
+- id: q12
+  section: main
+  multi: true
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D5 · Test severity and store_failures
+  text:
+    ru: A data test on `stg_vacancies.employer_id` currently fails the build whenever it finds any bad row. You want it to raise a warning for 1–10 failing rows, to fail the build above 10 rows, and to keep the failing rows in the warehouse for review. Which two actions should you take? (Choose two.)
+  options:
+  - text:
+      ru: 'Set `warn_if: ">0"` and `error_if: ">10"` in the config of the test'
+    correct: true
+  - text:
+      ru: 'Set `limit: 10` in the config of the test'
+    correct: false
+  - text:
+      ru: 'Set `store_failures: true` in the config of the test'
+    correct: true
+  - text:
+      ru: Run the build with the `--warn-error` flag
+    correct: false
+  - text:
+      ru: Set a `where` clause that keeps only the first 10 rows
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D5. `warn_if` и `error_if` задают пороги числа упавших строк для предупреждения и ошибки, а `store_failures: true` сохраняет упавшие строки в таблицу (по умолчанию в схему `<target_schema>_dbt_test__audit`). `limit` ограничивает число строк, возвращаемых тестом, но не задаёт порог, `--warn-error` превращает предупреждения в ошибки, а `where` сужает проверяемые строки.'
+- id: q13
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D3 · Flags
+  text:
+    ru: Your CI job must fail whenever dbt emits any warning, for example a deprecation warning, instead of only printing it. What should you do?
+  options:
+  - text:
+      ru: Add `--fail-fast` to the dbt command in the CI job
+    correct: false
+  - text:
+      ru: Add `--log-level debug` to the dbt command in the CI job
+    correct: false
+  - text:
+      ru: Add `--no-partial-parse` to the dbt command in the CI job
+    correct: false
+  - text:
+      ru: Add `--warn-error` to the dbt command in the CI job
+    correct: true
+  hints:
+    ru: []
+  explanation:
+    ru: D3. `--warn-error` превращает предупреждения в ошибки (выборочно — через `--warn-error-options`). `--fail-fast` останавливает запуск на первой ошибке, но предупреждений не касается, `--log-level` меняет только подробность логов, `--no-partial-parse` отключает кеш разбора проекта.
+- id: q14
+  section: main
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟩 понимание
+  topic:
+    ru: D1 · Python models
+  text:
+    ru: Which statement about dbt Python models is correct?
+  options:
+  - text:
+      ru: A `.py` file in `models/` returns a SQL string, which dbt wraps in `create view as` on any adapter that has a Python runtime
+    correct: false
+  - text:
+      ru: Python models run on the machine that runs dbt and are supported on every adapter, including Postgres
+    correct: false
+  - text:
+      ru: A Python model can be materialized as `view` or `ephemeral` but cannot call `dbt.ref()` for its inputs
+    correct: false
+  - text:
+      ru: A `.py` file defines `model(dbt, session)` and returns a DataFrame; only `table` and `incremental` are allowed
+    correct: true
+  hints:
+    ru: []
+  explanation:
+    ru: D1. Python-модель — файл `.py` в `models/` с функцией `model(dbt, session)`, которая возвращает DataFrame; внутри доступны `dbt.ref()`, `dbt.source()` и `dbt.config()`. Код выполняется в среде хранилища (Snowpark, Databricks, BigQuery), поэтому поддерживаются не все адаптеры, а материализации — только `table` и `incremental`.
+- id: q15
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟩 понимание
+  topic:
+    ru: D2 · Model versions
+  text:
+    ru: 'The `dim_employers` model is defined with versions v1 and v2, and `latest_version: 2` is set in its properties file. A downstream model uses `{{ ref(''dim_employers'') }}` without a version. Which version does it read?'
+  options:
+  - text:
+      ru: v1, because unversioned references stay on the first version until they are changed by hand
+    correct: false
+  - text:
+      ru: v2, because an unversioned `ref` resolves to `latest_version`
+    correct: true
+  - text:
+      ru: Both versions, because dbt unions all versions of a model into a single relation
+    correct: false
+  - text:
+      ru: None; dbt raises an error until the reference specifies `v=` explicitly
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D2. Без явной версии `ref` указывает на `latest_version` (если она не задана — на наибольший номер версии). Чтобы остаться на старой версии, пишут `ref('dim_employers', v=1)`, а у v1 задают `deprecation_date`, чтобы потребители увидели предупреждение и мигрировали.
+- id: q16
+  section: main
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟩 понимание
+  topic:
+    ru: D1 · Materializations
+  text:
+    ru: A model is configured as `ephemeral`. What happens to it when `dbt run` executes?
+  options:
+  - text:
+      ru: dbt creates a temporary table and drops it at the end of the run in the target schema
+    correct: false
+  - text:
+      ru: dbt creates no object; the SQL is inlined as a CTE into models that `ref` it
+    correct: true
+  - text:
+      ru: dbt creates a view with the suffix `__dbt_tmp` in the target schema
+    correct: false
+  - text:
+      ru: dbt skips the model unless it is selected explicitly with `--select`
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D1. `ephemeral`-модель не создаёт объект в хранилище: dbt подставляет её SELECT как CTE в модели, которые на неё ссылаются. Поэтому её нельзя запросить напрямую (например, из BI). Временные объекты с суффиксом `__dbt_tmp` (например, `fct_orders__dbt_tmp`) dbt использует внутри других материализаций, а пропуск модели без `--select` не связан с `ephemeral`.'
+- id: q17
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟩 понимание
+  topic:
+    ru: D5 · relationships
+  text:
+    ru: You need to guarantee that every `employer_id` in `fct_vacancies` exists in `dim_employers`. Which generic test should you define?
+  options:
+  - text:
+      ru: '`unique` on `fct_vacancies.employer_id`'
+    correct: false
+  - text:
+      ru: '`relationships` on `dim_employers.employer_id` with `to: ref(''fct_vacancies'')` and `field: employer_id` in the model properties'
+    correct: false
+  - text:
+      ru: '`relationships` on `fct_vacancies.employer_id` with `to: ref(''dim_employers'')` and `field: employer_id`'
+    correct: true
+  - text:
+      ru: '`accepted_values` on `fct_vacancies.employer_id` with the full list of employer ids'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D5. Тест `relationships` вешают на дочернюю колонку, а `to` и `field` указывают на родителя: он ищет значения, которых нет в родительской таблице (orphan keys). Вариант Б проверяет обратное направление: что у каждого работодателя есть вакансия. `unique` проверяет дубликаты, а `accepted_values` с хардкод-списком не масштабируется и не отражает связь таблиц.'
+- id: q18
+  section: main
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D4 · --fail-fast
+  text:
+    ru: You want `dbt build` to stop executing as soon as the first node fails, instead of finishing the independent branches of the DAG. What should you do?
+  options:
+  - text:
+      ru: Add the `--fail-fast` flag to the command
+    correct: true
+  - text:
+      ru: Add `--threads 1` so that nodes run one at a time
+    correct: false
+  - text:
+      ru: Add the `--warn-error` flag to the command
+    correct: false
+  - text:
+      ru: Add `--exclude` with the name of the failing node
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D4. `--fail-fast` останавливает запуск после первой ошибки. `--threads 1` лишь убирает параллелизм: независимые ветки всё равно будут выполняться. `--warn-error` превращает предупреждения в ошибки, а `--exclude` убирает узлы из выборки заранее.'
+- id: q19
+  section: main
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+  topic:
+    ru: D1 · Grants
+  text:
+    ru: 'In `dbt_project.yml`, the folder `models/marts` sets `+grants: {select: [''analyst'']}`. One model in that folder must be readable by `analyst` and also by `bi_tool`. In the model config you set `grants: {select: [''bi_tool'']}`. What is the result?'
+  options:
+  - text:
+      ru: Only `bi_tool` gets `select`, because the model-level list replaces the inherited one
+    correct: true
+  - text:
+      ru: Both roles get `select`, because dbt always merges grants from all configuration levels
+    correct: false
+  - text:
+      ru: The build fails because the `select` privilege is defined at two different levels
+    correct: false
+  - text:
+      ru: Only `analyst` gets `select`, because project-level grants cannot be overridden by models
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D1. По умолчанию грант на модели заменяет унаследованный список для той же привилегии. Чтобы добавить роль к унаследованным, нужен префикс `+`: `grants: {''+select'': [''bi_tool'']}`. Гранты применяются при сборке модели.'
+- id: q20
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D6 · Exposures
+  text:
+    ru: A Looker dashboard, `weekly_vacancies`, reads `fct_vacancies` and `dim_employers`. You want it to appear in the dbt lineage graph and to select the dashboard together with all its upstream models in one command. What should you do?
+  options:
+  - text:
+      ru: Declare a `source` named `weekly_vacancies` and add `meta` tags to both models
+    correct: false
+  - text:
+      ru: 'Add `access: public` to both models and describe the dashboard in their descriptions'
+    correct: false
+  - text:
+      ru: Load the dashboard definition with `dbt seed` and reference it with `ref()` in the models, so that dbt tracks the dashboard as a node
+    correct: false
+  - text:
+      ru: Declare a `dashboard` exposure that depends on both models, then select `+exposure:weekly_vacancies`
+    correct: true
+  hints:
+    ru: []
+  explanation:
+    ru: 'D6. Exposure описывает потребителя моделей (dashboard, notebook, analysis, ml, application): `name`, `type`, `owner` и `depends_on`. Он появляется в lineage и docs, а селектор `+exposure:weekly_vacancies` выбирает его вместе со всеми предками (например, в `dbt ls` или `dbt build`). Source описывает входные таблицы, `meta` и `access` на lineage не влияют, а seed — это CSV с данными.'
+- id: q21
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D7 · dbt retry
+  text:
+    ru: A nightly `dbt build` of 40 nodes failed on node 12 because of a transient warehouse timeout; the remaining nodes were skipped. You want to re-run only the failed and skipped nodes, using the artifacts of the failed run in `target/`, without retyping the selectors. What should you do?
+  options:
+  - text:
+      ru: Run `dbt build --full-refresh` again with the same selectors
+    correct: false
+  - text:
+      ru: Run `dbt retry`
+    correct: true
+  - text:
+      ru: Run `dbt build --fail-fast` again with the same selectors
+    correct: false
+  - text:
+      ru: Run `dbt build --select state:modified+` without any other options
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D7. `dbt retry` читает `run_results.json` последней команды и перезапускает только упавшие и пропущенные узлы с теми же параметрами, пропуская успешные. `--full-refresh` пересоберёт всё, `--fail-fast` лишь останавливает запуск при первой ошибке, а `state:modified+` без `--state` не работает.
+- id: q22
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D1 · --sample
+  text:
+    ru: To speed up development, you want `dbt run` to build models from only the last 3 days of data. The sources and upstream models define `event_time`. Which command should you run?
+  options:
+  - text:
+      ru: '`dbt run --sample="3 days"`'
+    correct: true
+  - text:
+      ru: '`dbt run --empty` with a `limit` of 3 days in every model'
+    correct: false
+  - text:
+      ru: '`dbt run --select last_3_days`'
+    correct: false
+  - text:
+      ru: '`dbt run --vars ''{days: 3}''` and a filter in each model'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D1. `--sample` (dbt 1.10+) ограничивает входные `ref()` и `source()` окном по `event_time`, поэтому у моделей и источников должен быть настроен `event_time`. `--empty` берёт ноль строк, а не последние дни, `--select` выбирает узлы графа, но не строки, а `vars` потребовали бы ручных фильтров в каждой модели.
+- id: q23
+  section: main
+  multi: true
+  difficulty: средний
+  level:
+    ru: 🟩 понимание
+  topic:
+    ru: D5 · Generic tests
+  text:
+    ru: Which two built-in generic tests, applied together to one column, make that column a valid primary key? (Choose two.)
+  options:
+  - text:
+      ru: '`unique`'
+    correct: true
+  - text:
+      ru: '`accepted_values`'
+    correct: false
+  - text:
+      ru: '`not_null`'
+    correct: true
+  - text:
+      ru: '`relationships`'
+    correct: false
+  - text:
+      ru: '`dbt_utils.not_constant`'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D5. Первичный ключ — это уникальные и непустые значения: `unique` + `not_null`. `accepted_values` ограничивает набор значений, `relationships` проверяет ссылочную целостность, а `not_constant` из `dbt_utils` проверяет, что колонка не состоит из одного значения.'
+- id: q24
+  section: main
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟩 понимание
+  topic:
+    ru: D3 · dbt debug
+  text:
+    ru: Which command verifies `profiles.yml`, `dbt_project.yml`, and the connection to the warehouse?
+  options:
+  - text:
+      ru: '`dbt debug`'
+    correct: true
+  - text:
+      ru: '`dbt parse`'
+    correct: false
+  - text:
+      ru: '`dbt compile`'
+    correct: false
+  - text:
+      ru: '`dbt deps`'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D3. `dbt debug` проверяет версию dbt, наличие и корректность `profiles.yml` и `dbt_project.yml`, зависимости и подключение к хранилищу. `parse` строит граф проекта без подключения к хранилищу; `compile` подключается к нему, но не диагностирует профиль и конфигурацию так, как `debug`; `deps` устанавливает пакеты.
+- id: q25
+  section: main
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+  topic:
+    ru: D2 · Constraints
+  text:
+    ru: 'On Snowflake, the model `dim_employers` has `contract: {enforced: true}` and a `primary_key` constraint on `employer_id`. A bug loads two rows with the same `employer_id`. What happens?'
+  options:
+  - text:
+      ru: The build fails, because dbt checks that primary key values are unique before it creates the table in the warehouse
+    correct: false
+  - text:
+      ru: The build fails, because Snowflake enforces primary key constraints at insert time
+    correct: false
+  - text:
+      ru: The build succeeds, because Snowflake does not enforce primary keys; a `unique` data test would catch it
+    correct: true
+  - text:
+      ru: The build succeeds and dbt removes the duplicate rows automatically after the load
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D2. dbt только передаёт ограничение платформе в DDL, а поддержка зависит от хранилища. В Snowflake применяется лишь `not_null`, а `primary_key`, `unique` и `foreign_key` носят информационный характер, поэтому дубликаты не блокируют сборку. Целостность значений проверяют data tests (`unique`, `not_null`), а контракт гарантирует состав и типы колонок.
+- id: q26
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D1 · insert_overwrite
+  text:
+    ru: On BigQuery, the `events_daily` table is partitioned by day. Each run must replace the last three daily partitions completely with freshly computed data, because late events keep changing them. Which configuration fits best?
+  options:
+  - text:
+      ru: Incremental model with `incremental_strategy='append'` and a filter on the last three days
+    correct: false
+  - text:
+      ru: Incremental model with `incremental_strategy='insert_overwrite'` and `partition_by` on the event date
+    correct: true
+  - text:
+      ru: Incremental model with `incremental_strategy='merge'` and `unique_key='event_id'` on the whole table in every run
+    correct: false
+  - text:
+      ru: A `view` that unions the last three days of the source with the previous version of the table
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D1. На BigQuery `insert_overwrite` заменяет партиции целиком, не сравнивая строки по ключу, — это подходит, когда последние дни пересчитываются полностью. `append` создаст дубликаты, `merge` сопоставляет строки по `unique_key` и сканирует больше данных, а view не хранит результат.
+- id: q27
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D5 · Singular tests
+  text:
+    ru: A one-off business rule joins three models and returns the rows that violate it, for example vacancies that were closed before they were opened. Which type of dbt test fits best?
+  options:
+  - text:
+      ru: A generic test declared on a single column of `fct_vacancies` with a custom parameter
+    correct: false
+  - text:
+      ru: A unit test with mocked `given` rows and an `expect` block
+    correct: false
+  - text:
+      ru: A source freshness check on the raw vacancies table
+    correct: false
+  - text:
+      ru: 'A singular test: a SQL file in `tests/` that returns the violating rows'
+    correct: true
+  hints:
+    ru: []
+  explanation:
+    ru: D5. Singular test — это SQL-файл в `tests/`, который возвращает строки, нарушающие правило; тест падает, если строки есть. Он подходит для правил по нескольким моделям. Generic test привязан к колонке и параметризуется, unit test проверяет логику на моках, а freshness измеряет возраст данных.
+- id: q28
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D4 · dbt clone
+  text:
+    ru: You want a development schema to contain copies of the production tables so that developers can query them immediately, without rebuilding the models. The production artifacts are in `./prod-artifacts`. Which command should you use?
+  options:
+  - text:
+      ru: '`dbt clone --state ./prod-artifacts`'
+    correct: true
+  - text:
+      ru: '`dbt run --defer --state ./prod-artifacts` for all models'
+    correct: false
+  - text:
+      ru: '`dbt seed --full-refresh` in the development target'
+    correct: false
+  - text:
+      ru: '`dbt docs generate --static` with the production target'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D4. `dbt clone` создаёт в целевой схеме копии узлов из состояния, переданного через `--state`: zero-copy clone там, где платформа это поддерживает, иначе view на prod-таблицу. `--defer` лишь подставляет prod-объекты при разрешении `ref` и сам ничего не создаёт, seed грузит CSV, а `docs generate` строит документацию.'
+- id: q29
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D1 · Snapshots
+  text:
+    ru: You track the history of `dim_employers` with a YAML snapshot. The source has a reliable `updated_at` column and the key `employer_id`. Which configuration is the most efficient way to detect changed rows?
+  options:
+  - text:
+      ru: '`strategy: check` with `check_cols: all` and a `unique_key` on `employer_id`, comparing every column of the row'
+    correct: false
+  - text:
+      ru: '`strategy: timestamp` with `unique_key: employer_id` and `updated_at: updated_at`'
+    correct: true
+  - text:
+      ru: '`strategy: append` with `unique_key: employer_id` and no timestamp column'
+    correct: false
+  - text:
+      ru: '`strategy: merge` with `updated_at: updated_at` and no unique key'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D1. Стратегия `timestamp` сравнивает только `updated_at`, поэтому она дешевле, чем `check`, которой нужно сравнивать значения колонок. Для неё задают `unique_key` и `updated_at`, а dbt добавляет колонки `dbt_valid_from` и `dbt_valid_to` (у актуальной версии строки `dbt_valid_to` равен NULL). Стратегий `append` и `merge` у снапшотов нет.
+- id: q30
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D3 · Compilation errors
+  text:
+    ru: 'A run fails with: `Compilation Error in model fct_vacancies: depends on a node named ''stg_vacancy'' which was not found`. The project contains the model `stg_vacancies`. What is the most likely cause?'
+  options:
+  - text:
+      ru: The warehouse role has no permission to read the table `stg_vacancy`
+    correct: false
+  - text:
+      ru: The seed behind `stg_vacancy` has not been loaded, so `dbt seed` must run first in the same job
+    correct: false
+  - text:
+      ru: The `ref('stg_vacancy')` call has a typo, or the referenced model does not exist
+    correct: true
+  - text:
+      ru: The profile target points to a different database than `dbt_project.yml`
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D3. Эта ошибка возникает на этапе компиляции, ещё до обращения к хранилищу: в проекте нет узла с именем из `ref()`. Нужно исправить имя (`stg_vacancies`) или подключить модель. Права доступа и база в профиле дают Database Error уже при выполнении, а незагруженный seed не влияет на то, найден ли узел в графе.'
+- id: q31
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: 'D5 · Test config: where'
+  text:
+    ru: A `not_null` test on a 2-billion-row table must check only the rows loaded in the last 7 days to keep costs low. What should you configure?
+  options:
+  - text:
+      ru: '`limit: 7` in the config of the test, to read only the last seven days of data'
+    correct: false
+  - text:
+      ru: '`severity: warn` in the config of the test'
+    correct: false
+  - text:
+      ru: '`store_failures: true` in the config of the test'
+    correct: false
+  - text:
+      ru: '`where: "loaded_at >= current_date - 7"` in the config of the test'
+    correct: true
+  hints:
+    ru: []
+  explanation:
+    ru: D5. Параметр `where` добавляет фильтр в запрос теста, поэтому проверяются только нужные строки. `limit` ограничивает число возвращаемых упавших строк, `severity` меняет уровень реакции на падение, а `store_failures` сохраняет упавшие строки — на объём проверки они не влияют.
+- id: q32
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟩 понимание
+  topic:
+    ru: D7 · state:modified
+  text:
+    ru: What does the selector `state:modified` compare?
+  options:
+  - text:
+      ru: The results in `run_results.json` of the previous run with the results of the current run, node by node, to find failed nodes
+    correct: false
+  - text:
+      ru: The current project with the `manifest.json` passed through `--state`, selecting new or changed nodes
+    correct: true
+  - text:
+      ru: The row counts of the tables in the warehouse with the row counts of the previous run
+    correct: false
+  - text:
+      ru: The files changed in the latest git commit with the files of the target branch
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D7. `state:modified` сравнивает текущее описание узлов (код, конфиги, зависимости) с `manifest.json` из каталога `--state` и выбирает новые и изменённые узлы. Статусы выполнения узлов выбираются селектором `result:`, количество строк dbt не сравнивает, а git dbt не читает: сравнение идёт по артефактам.'
+- id: q33
+  section: main
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: 'D1 · Incremental: append'
+  text:
+    ru: 'A clickstream events table is append-only: rows are immutable and never updated. You want the simplest and cheapest incremental model. What should you do?'
+  options:
+  - text:
+      ru: Use `incremental_strategy='delete+insert'` with `unique_key='event_id'`
+    correct: false
+  - text:
+      ru: Use `incremental_strategy='merge'` with `unique_key='event_id'`
+    correct: false
+  - text:
+      ru: Use `incremental_strategy='append'` without a `unique_key`
+    correct: true
+  - text:
+      ru: Materialize the model as `table` and rebuild it every night
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D1. Для неизменяемых событий достаточно `append`: dbt просто вставляет новые строки, не сравнивая их с существующими, поэтому это самая дешёвая стратегия. `merge` и `delete+insert` нужны, когда строки могут обновляться и требуется `unique_key`, а `table` пересчитывает всё при каждом запуске.'
+- id: q34
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D6 · Sources
+  text:
+    ru: The raw table in the warehouse is named `RAW_VACANCIES_V2`, but models should refer to it as `{{ source('hh', 'vacancies') }}`. How do you map the dbt name to the physical table?
+  options:
+  - text:
+      ru: 'Set `identifier: RAW_VACANCIES_V2` on the table `vacancies` of the source `hh`'
+    correct: true
+  - text:
+      ru: 'Set `alias: RAW_VACANCIES_V2` in the config of the source table `vacancies`'
+    correct: false
+  - text:
+      ru: Use `{{ ref('RAW_VACANCIES_V2') }}` and keep the source name only in the documentation
+    correct: false
+  - text:
+      ru: 'Set `database: RAW_VACANCIES_V2` in the definition of the source `hh`'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D6. У таблицы источника `name` — это имя для `source()`, а `identifier` — реальное имя таблицы в хранилище. `alias` относится к моделям, `ref()` работает с узлами dbt, а не с сырыми таблицами, `database` задаёт базу, а не таблицу.
+- id: q35
+  section: main
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+  topic:
+    ru: D2 · Contract enforcement
+  text:
+    ru: A model on Postgres has an enforced contract, and the YAML declares `salary_min` as `integer`. After a refactoring, the model SQL returns `salary_min` as `numeric(10,2)` without any cast. What happens when you build the model?
+  options:
+  - text:
+      ru: dbt casts the column to `integer` silently and logs a warning about the conversion
+    correct: false
+  - text:
+      ru: dbt builds the model and only warns, because the contract applies to column names
+    correct: false
+  - text:
+      ru: The build fails with a contract error before the object is created; you fix it with a cast in SQL
+    correct: true
+  - text:
+      ru: dbt creates the table with `numeric(10,2)` and then fails the contract in a post-run step that checks the table
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D2. Контракт проверяет и имена, и типы колонок: dbt сверяет результат запроса с YAML до создания объекта и падает с перечнем расхождений. Автоматического приведения типов нет — приведение пишут в SQL (`cast(salary_min as integer)`). Поэтому ни тихий cast, ни предупреждение, ни проверка после создания таблицы не происходят.'
+- id: q36
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D1 · on_schema_change
+  text:
+    ru: You added the column `employer_country` to the SQL of an existing incremental model. You want dbt to add this column to the existing table automatically on the next run, but never to drop existing columns. Which setting fits?
+  options:
+  - text:
+      ru: '`on_schema_change=''ignore''`'
+    correct: false
+  - text:
+      ru: '`on_schema_change=''append_new_columns''`'
+    correct: true
+  - text:
+      ru: '`on_schema_change=''sync_all_columns''` together with a `full_refresh: false` config'
+    correct: false
+  - text:
+      ru: '`on_schema_change=''fail''`'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D1. `append_new_columns` добавляет новые колонки и не трогает старые. `ignore` (значение по умолчанию) оставляет таблицу без новой колонки, `sync_all_columns` добавляет новые и удаляет отсутствующие в запросе, а `fail` останавливает запуск с ошибкой.
+- id: q37
+  section: main
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+  topic:
+    ru: D5 · Unit tests for incremental models
+  text:
+    ru: You want a unit test that exercises the `is_incremental()` branch of the incremental model `fct_events`, with rows that already exist in the target table. How do you set that up?
+  options:
+  - text:
+      ru: Run `dbt test` after the second `dbt run`, because unit tests only work on built tables
+    correct: false
+  - text:
+      ru: Use a singular test on the built table instead, because unit tests do not support incremental models at all
+    correct: false
+  - text:
+      ru: Add `--full-refresh` to `dbt test` to switch the model into incremental mode
+    correct: false
+  - text:
+      ru: 'Set `overrides: macros: is_incremental: true` and pass the existing rows as the `given` input `this`'
+    correct: true
+  hints:
+    ru: []
+  explanation:
+    ru: 'D5. Для unit-теста инкрементальной ветки переопределяют макрос: `overrides: macros: is_incremental: true`, а строки уже существующей таблицы передают в `given` с `input: this`. Unit-тесты работают на моках входных данных и не требуют собранных upstream-таблиц (но отношение самой тестируемой модели в хранилище должно существовать), поддерживают incremental-модели, а `--full-refresh` наоборот отключает инкрементальную логику.'
+- id: q38
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D4 · Graph operators
+  text:
+    ru: You want to build `fct_vacancies` together with all of its upstream models, and nothing downstream of it. Which command should you run?
+  options:
+  - text:
+      ru: '`dbt build --select +fct_vacancies`'
+    correct: true
+  - text:
+      ru: '`dbt build --select fct_vacancies+`'
+    correct: false
+  - text:
+      ru: '`dbt build --select @fct_vacancies`'
+    correct: false
+  - text:
+      ru: '`dbt build --select fct_vacancies --exclude +fct_vacancies`'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D4. Плюс слева выбирает модель и всех её предков, плюс справа — потомков. `@` выбирает модель, потомков и всех предков этих потомков, а последний вариант исключает саму модель вместе с предками и не оставляет ничего.
+- id: q39
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D3 · YAML errors
+  text:
+    ru: '`dbt parse` fails with: `mapping values are not allowed in this context` and points to line 12 of `models/staging/_stg.yml`. What should you do first?'
+  options:
+  - text:
+      ru: Check that the warehouse can run the SQL of the models listed in that file, starting from the longest query
+    correct: false
+  - text:
+      ru: Fix the YAML syntax around line 12, for example the indentation or an unquoted colon
+    correct: true
+  - text:
+      ru: Run `dbt deps` to reinstall the packages used by the models in that file
+    correct: false
+  - text:
+      ru: Re-run the command with `--full-refresh` so that dbt rebuilds the manifest
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D3. Это ошибка разбора YAML: dbt не смог прочитать properties-файл, поэтому до хранилища дело не доходит. Обычная причина — отступ или двоеточие внутри значения без кавычек. Установка пакетов, `--full-refresh` и проверка SQL на этом этапе не помогут.'
+- id: q40
+  section: main
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+  topic:
+    ru: D1 · Custom schemas
+  text:
+    ru: 'In the development target the default schema is `dbt_nick`. The model `fct_vacancies` has `+schema: marts` in `dbt_project.yml`, and the project uses the default `generate_schema_name` macro. In which schema does dbt build the model in development?'
+  options:
+  - text:
+      ru: '`marts`'
+    correct: false
+  - text:
+      ru: '`dbt_nick.marts` as a nested schema inside `dbt_nick`'
+    correct: false
+  - text:
+      ru: '`prod_marts`'
+    correct: false
+  - text:
+      ru: '`dbt_nick_marts`'
+    correct: true
+  hints:
+    ru: []
+  explanation:
+    ru: 'D1. Макрос `generate_schema_name` по умолчанию склеивает схему из target и кастомную: `<target.schema>_<custom_schema>`, то есть `dbt_nick_marts`. В production с `target.schema = prod` получится `prod_marts`. Чтобы использовать кастомную схему без префикса, переопределяют макрос в проекте.'
+- id: q41
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D5 · Unit tests in production
+  text:
+    ru: Unit tests use mocked data and are needed only in CI. You want production `dbt build` runs to skip them. What should you do?
+  options:
+  - text:
+      ru: Add `--exclude test_type:generic` to the production command of the nightly job
+    correct: false
+  - text:
+      ru: Add `--select test_type:unit` to the production command
+    correct: false
+  - text:
+      ru: Add `--exclude-resource-type unit_test` to the production command
+    correct: true
+  - text:
+      ru: Add `--no-unit-tests` to the production command
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D5. Флаг `--exclude-resource-type unit_test` убирает unit-тесты из выборки, поэтому в production они не запускаются. `test_type:generic` относится к обычным generic data tests, и исключение отключило бы их, а не unit-тесты; `--select test_type:unit` наоборот запустил бы только unit-тесты; флага `--no-unit-tests` в dbt нет.
+- id: q42
+  section: main
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D1 · Packages
+  text:
+    ru: You want to use macros and tests from the `dbt_utils` package in your project. What should you do?
+  options:
+  - text:
+      ru: Run `pip install dbt-utils` in the environment where dbt runs
+    correct: false
+  - text:
+      ru: Add `dbt_utils` to `requirements.txt` and rebuild the virtual environment
+    correct: false
+  - text:
+      ru: Run `dbt seed` to load the package into the project
+    correct: false
+  - text:
+      ru: Declare the package in `packages.yml` and run `dbt deps`
+    correct: true
+  hints:
+    ru: []
+  explanation:
+    ru: D1. Пакеты dbt объявляют в `packages.yml` (hub, git или локальный путь) и устанавливают командой `dbt deps` в каталог `dbt_packages/`. Это не Python-пакеты, поэтому `pip` и `requirements.txt` не подходят, а `dbt seed` загружает CSV.
+- id: q43
+  section: main
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+  topic:
+    ru: D7 · --defer
+  text:
+    ru: In your development schema only `fct_orders` has been built; `stg_orders` has not. You run `dbt run --select fct_orders --defer --state ./prod-artifacts`. How is `{{ ref('stg_orders') }}` resolved?
+  options:
+  - text:
+      ru: The run fails, because `stg_orders` does not exist in the development schema
+    correct: false
+  - text:
+      ru: It resolves to the production relation of `stg_orders` found in the state manifest
+    correct: true
+  - text:
+      ru: dbt builds `stg_orders` in the development schema first and then builds `fct_orders`
+    correct: false
+  - text:
+      ru: dbt copies the rows of the production `stg_orders` into a temporary development table
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D7. С `--defer` dbt для не выбранных и не собранных в текущем target родителей подставляет их relation из `--state` (обычно prod), поэтому `fct_orders` читает prod-версию `stg_orders`. Ничего не копируется и не строится заново. Без `--defer` запуск упал бы с ошибкой отсутствия таблицы.
+- id: q44
+  section: main
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟩 понимание
+  topic:
+    ru: D3 · Logs
+  text:
+    ru: After a failed run you need the full log of every statement and error message, including debug-level details. Where does dbt write it by default?
+  options:
+  - text:
+      ru: '`logs/dbt.log`'
+    correct: true
+  - text:
+      ru: '`target/run_results.json`'
+    correct: false
+  - text:
+      ru: '`target/manifest.json`'
+    correct: false
+  - text:
+      ru: '`dbt_packages/dbt.log`'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D3. Полный лог лежит в `logs/dbt.log`. `run_results.json` содержит статусы, время и сообщения по узлам, но не весь лог, `manifest.json` описывает проект и граф, а `dbt_packages/` хранит установленные пакеты.
+- id: q45
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: 'D1 · Snapshot: check strategy'
+  text:
+    ru: The source table of vacancies has no reliable `updated_at` column. A new snapshot version must be created whenever `salary` or `title` changes. Which snapshot configuration fits?
+  options:
+  - text:
+      ru: '`strategy: check` with `check_cols: [salary, title]` and a `unique_key`'
+    correct: true
+  - text:
+      ru: '`strategy: timestamp` with `updated_at: current_timestamp` and a `unique_key`'
+    correct: false
+  - text:
+      ru: '`strategy: check` with an empty `check_cols` list and a `unique_key`'
+    correct: false
+  - text:
+      ru: '`strategy: timestamp` without `updated_at`, relying on the row order'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D1. Стратегия `check` сравнивает значения указанных колонок (`check_cols`) и создаёт новую версию при изменении, поэтому она подходит без `updated_at`. `timestamp` требует настоящую колонку с временем изменения, а `current_timestamp` менялся бы при каждом запуске.
+- id: q46
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D5 · Test selection
+  text:
+    ru: You want to run only data tests (generic and singular) and skip unit tests. Which command should you use?
+  options:
+  - text:
+      ru: '`dbt test --select test_type:generic`'
+    correct: false
+  - text:
+      ru: '`dbt test --select test_type:singular`'
+    correct: false
+  - text:
+      ru: '`dbt test --exclude test_type:data`'
+    correct: false
+  - text:
+      ru: '`dbt test --select test_type:data`'
+    correct: true
+  hints:
+    ru: []
+  explanation:
+    ru: D5. `test_type:data` объединяет generic и singular тесты, а unit-тесты имеют тип `unit`. Варианты А и Б запустят только часть data tests, а `--exclude test_type:data` отключит именно то, что нужно запустить.
+- id: q47
+  section: main
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+  topic:
+    ru: D4 · Node selection
+  text:
+    ru: What does `dbt build --select tag:nightly,config.materialized:incremental` select?
+  options:
+  - text:
+      ru: Nodes that have the tag `nightly` or are incremental models, as a union of both sets of nodes
+    correct: false
+  - text:
+      ru: Nodes that have the tag `nightly` and are also incremental models, as an intersection
+    correct: true
+  - text:
+      ru: Nodes with the tag `nightly` except those that are materialized as incremental
+    correct: false
+  - text:
+      ru: Nodes with the tag `nightly` together with their incremental descendants
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D4. В синтаксисе выбора запятая без пробелов означает пересечение (AND), а пробел — объединение (OR). Поэтому выбираются только incremental-модели с тегом `nightly`. Исключение делается через `--exclude`, а потомки выбираются оператором `+`.
+- id: q48
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D6 · Freshness command
+  text:
+    ru: You want a CI step that checks the freshness of only the `vacancies` table of the source `hh` and fails when the freshness check returns an error. Which command should you use?
+  options:
+  - text:
+      ru: '`dbt test --select source:hh.vacancies`'
+    correct: false
+  - text:
+      ru: '`dbt run --select source:hh.vacancies+ --fail-fast`'
+    correct: false
+  - text:
+      ru: '`dbt source freshness --select source:hh.vacancies`'
+    correct: true
+  - text:
+      ru: '`dbt run-operation source_freshness --args ''{table: vacancies}''`'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D6. Свежесть проверяет только `dbt source freshness`; выбор источника делается селектором `source:<источник>.<таблица>`, а при статусе error команда завершается с ненулевым кодом, что и нужно CI. `dbt test` запускает тесты источника, а не свежесть, `dbt run` собирает модели и свежесть не проверяет, такого макроса для `run-operation` нет.
+- id: q49
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D1 · Raw dependencies
+  text:
+    ru: A staging model reads `analytics_raw.vacancies` written as a plain table name. The lineage graph shows no upstream node for it, and its freshness cannot be monitored. What should you do?
+  options:
+  - text:
+      ru: Wrap the table name in `{{ ref('vacancies') }}` and keep the table outside of dbt, without changing the YAML files
+    correct: false
+  - text:
+      ru: 'Add `+materialized: view` to the staging model so that dbt registers the table'
+    correct: false
+  - text:
+      ru: Load the table with `dbt seed` and read it through a plain table name again
+    correct: false
+  - text:
+      ru: Declare the table as a source in YAML and read it with `{{ source('raw', 'vacancies') }}`
+    correct: true
+  hints:
+    ru: []
+  explanation:
+    ru: 'D1. Сырые таблицы объявляют как source и читают через `source()`: тогда они попадают в DAG и lineage, для них можно настроить freshness и тесты. `ref()` работает с узлами dbt, а не с произвольными таблицами, материализация модели не регистрирует входные таблицы, а seed подходит только для небольших CSV.'
+- id: q50
+  section: main
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟩 понимание
+  topic:
+    ru: D5 · Test syntax
+  text:
+    ru: Since dbt 1.8, which key in a properties file holds the generic tests of a column?
+  options:
+  - text:
+      ru: '`unit_tests`'
+    correct: false
+  - text:
+      ru: '`checks`'
+    correct: false
+  - text:
+      ru: '`data_tests`'
+    correct: true
+  - text:
+      ru: '`assertions`'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D5. В dbt 1.8+ generic tests на колонке и модели описываются в ключе `data_tests` (старое имя `tests` поддерживается как псевдоним). `unit_tests` — это отдельный верхнеуровневый ключ для unit-тестов, а `checks` и `assertions` в dbt не используются.
+- id: q51
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D2 · Deprecation
+  text:
+    ru: 'Version v1 of `dim_employers` has `deprecation_date: 2026-12-31`. After that date a downstream model still uses `{{ ref(''dim_employers'', v=1) }}`. What does dbt do?'
+  options:
+  - text:
+      ru: It stops with an error at parse time and refuses to run the project
+    correct: false
+  - text:
+      ru: It emits a deprecation warning, and the build continues normally
+    correct: true
+  - text:
+      ru: It drops the v1 relation from the warehouse on the deprecation date
+    correct: false
+  - text:
+      ru: It silently redirects the reference to v2 without any message
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D2. `deprecation_date` — сигнал потребителям: dbt выводит предупреждение при использовании устаревшей версии, но сборка продолжается. Он ничего не удаляет и не перенаправляет `ref`, а ошибкой предупреждение становится только с `--warn-error`.'
+- id: q52
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D1 · is_incremental and this
+  text:
+    ru: Which filter inside an incremental model loads only rows newer than those already in the target table?
+  options:
+  - text:
+      ru: '`{% if is_incremental() %} where updated_at > (select max(updated_at) from {{ this }}) {% endif %}`'
+    correct: true
+  - text:
+      ru: '`where updated_at > (select max(updated_at) from {{ ref(''fct_events'') }})` without any condition'
+    correct: false
+  - text:
+      ru: '`{% if is_incremental() %} where updated_at > current_date {% endif %}` as a fixed daily window'
+    correct: false
+  - text:
+      ru: '`{% if not is_incremental() %} where updated_at > (select max(updated_at) from {{ this }}) {% endif %}`'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D1. `is_incremental()` истинно, когда таблица уже существует и запуск не `--full-refresh`; тогда фильтр берёт максимум из `{{ this }}` — текущей таблицы. Ссылка модели на себя через `ref` создаёт цикл, фиксированное окно пропустит запоздавшие строки, а инвертированное условие на первом запуске обратится к несуществующей таблице.
+- id: q53
+  section: main
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+  topic:
+    ru: D3 · Partial parsing
+  text:
+    ru: After switching between two large branches, dbt reports errors about nodes that no longer exist in the project, and you suspect a stale parse cache in `target/partial_parse.msgpack`. Which flag forces dbt to parse the whole project again?
+  options:
+  - text:
+      ru: '`--full-refresh`'
+    correct: false
+  - text:
+      ru: '`--fail-fast`'
+    correct: false
+  - text:
+      ru: '`--no-version-check`'
+    correct: false
+  - text:
+      ru: '`--no-partial-parse`'
+    correct: true
+  hints:
+    ru: []
+  explanation:
+    ru: D3. dbt кеширует результат разбора проекта (partial parsing) и перечитывает только изменённые файлы. Флаг `--no-partial-parse` отключает кеш и заставляет разобрать проект заново. `--full-refresh` относится к incremental-моделям, `--fail-fast` останавливает запуск на первой ошибке, а `--no-version-check` отключает проверку версии dbt.
+- id: q54
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D5 · Package tests
+  text:
+    ru: The grain of `fct_applications` is the pair (`vacancy_id`, `candidate_id`); each column repeats on its own, but a pair must never repeat. How should you test the grain?
+  options:
+  - text:
+      ru: Add `unique` tests to both columns separately
+    correct: false
+  - text:
+      ru: Add `not_null` tests to both columns separately
+    correct: false
+  - text:
+      ru: Add `dbt_utils.unique_combination_of_columns` on the model with both columns
+    correct: true
+  - text:
+      ru: Add a `relationships` test from each column to its dimension table and a `not_null` test on both
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D5. Уникальность пары колонок проверяет тест `unique_combination_of_columns` из пакета `dbt_utils`, который объявляют на уровне модели. Отдельные `unique` на колонках упадут на законных повторах, `not_null` не проверяет уникальность, а `relationships` проверяет ссылки на справочники, но не зерно таблицы.
+- id: q55
+  section: main
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟩 понимание
+  topic:
+    ru: D4 · dbt ls
+  text:
+    ru: You want to see which nodes the selector `tag:nightly+` would run, without running anything. Which command should you use?
+  options:
+  - text:
+      ru: '`dbt compile --select tag:nightly+`'
+    correct: false
+  - text:
+      ru: '`dbt ls --select tag:nightly+`'
+    correct: true
+  - text:
+      ru: '`dbt show --select tag:nightly+`'
+    correct: false
+  - text:
+      ru: '`dbt docs generate --select tag:nightly+`'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D4. `dbt ls` (`dbt list`) выводит список узлов, которые выберет селектор, и ничего не выполняет в хранилище. `compile` рендерит SQL, `show` выполняет запрос и показывает строки, а `docs generate` строит документацию.
+- id: q56
+  section: main
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+  topic:
+    ru: D1 · Snapshot hard deletes
+  text:
+    ru: A YAML snapshot (dbt 1.9+) tracks `dim_employers`. When an employer disappears from the source, you want to keep its history and add an extra row that marks the deletion. Which setting fits?
+  options:
+  - text:
+      ru: '`hard_deletes: ignore`'
+    correct: false
+  - text:
+      ru: '`hard_deletes: invalidate`'
+    correct: false
+  - text:
+      ru: '`hard_deletes: new_record`'
+    correct: true
+  - text:
+      ru: '`hard_deletes: delete`'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D1. `new_record` закрывает версию строки и добавляет новую запись с флагом `dbt_is_deleted`. `ignore` (по умолчанию) удаления не замечает, `invalidate` только проставляет `dbt_valid_to` у последней версии без новой строки, а значения `delete` у настройки нет.
+- id: q57
+  section: main
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+  topic:
+    ru: 'D7 · result: selector'
+  text:
+    ru: The `run_results.json` of last night's failed run was saved to `./last_run`. From another machine, you want to run the models that failed together with all their descendants, using `./last_run` as the state. Which command should you use?
+  options:
+  - text:
+      ru: '`dbt build --select result:error+ --state ./last_run`'
+    correct: true
+  - text:
+      ru: '`dbt build --select state:modified+ --state ./last_run`'
+    correct: false
+  - text:
+      ru: '`dbt build --select result:warn+ --state ./last_run`'
+    correct: false
+  - text:
+      ru: '`dbt build --select source_status:fresher+ --state ./last_run`'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D7. Селектор `result:<статус>` выбирает узлы по статусу в `run_results.json` из каталога `--state`; `result:error+` — упавшие узлы и их потомки. `state:modified` сравнивает код и конфиги, а не статусы, `result:warn` выбирает предупреждения, а `source_status` работает с результатами `dbt source freshness`.
+- id: q58
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D5 · Tests on sources
+  text:
+    ru: A `not_null` test is declared on a column of the source table `hh.vacancies`. Which command runs only the tests defined on the source `hh`?
+  options:
+  - text:
+      ru: '`dbt test --select source:hh`'
+    correct: true
+  - text:
+      ru: '`dbt source freshness --select source:hh`'
+    correct: false
+  - text:
+      ru: '`dbt run --select source:hh`'
+    correct: false
+  - text:
+      ru: '`dbt build --exclude source:hh`'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D5. Тесты можно объявлять и на источниках, а запускать их через `dbt test --select source:<имя>`. `dbt source freshness` проверяет возраст данных, а не тесты, `dbt run` выполняет только модели, а `--exclude` убирает узлы, а не выбирает их.
+- id: q59
+  section: main
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟩 понимание
+  topic:
+    ru: D1 · dbt show
+  text:
+    ru: You want to preview 10 rows of the query behind `stg_vacancies` without materializing anything in the warehouse. Which command should you use?
+  options:
+  - text:
+      ru: '`dbt run --select stg_vacancies --limit 10` in a scratch schema'
+    correct: false
+  - text:
+      ru: '`dbt compile --select stg_vacancies`'
+    correct: false
+  - text:
+      ru: '`dbt docs serve`'
+    correct: false
+  - text:
+      ru: '`dbt show --select stg_vacancies --limit 10`'
+    correct: true
+  hints:
+    ru: []
+  explanation:
+    ru: D1. `dbt show` выполняет запрос модели и выводит строки в терминал, ничего не создавая в хранилище; `--limit` ограничивает число строк. `dbt run` материализует модель и флага `--limit` не имеет, `compile` только рендерит SQL, а `docs serve` запускает сайт документации.
+- id: q60
+  section: main
+  multi: false
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+  topic:
+    ru: D3 · Verifying a fix
+  text:
+    ru: A pull request fixes `stg_vacancies`, whose `not_null` test was failing. Before merging, you want to verify the fix in your development schema and see whether any downstream model or test breaks. Which command should you run?
+  options:
+  - text:
+      ru: '`dbt build --select stg_vacancies+`'
+    correct: true
+  - text:
+      ru: '`dbt run --select stg_vacancies` and nothing else'
+    correct: false
+  - text:
+      ru: '`dbt parse` and check that it finishes without errors'
+    correct: false
+  - text:
+      ru: '`dbt compile --select +stg_vacancies` and read the SQL'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D3. `dbt build --select stg_vacancies+` пересобирает модель, запускает её тесты и проверяет потомков, то есть показывает и исправление, и возможные поломки ниже по графу. `run` не запускает тесты, `parse` и `compile` в хранилище ничего не выполняют, поэтому не подтверждают, что данные исправлены.
+- id: q61
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D1 · Macros and DRY
+  text:
+    ru: The same `CASE` expression that normalizes a status column is copied into 12 models, and the column has different names in different models. How do you follow the DRY principle?
+  options:
+  - text:
+      ru: Move the expression into an `ephemeral` model and join it to every model, then rename the columns in each join
+    correct: false
+  - text:
+      ru: Store the expression in a seed and read it with `ref()` in each model
+    correct: false
+  - text:
+      ru: Put the expression into a string in `vars` and paste it in each model
+    correct: false
+  - text:
+      ru: Write a Jinja macro in `macros/` and call it with the column name in each model
+    correct: true
+  hints:
+    ru: []
+  explanation:
+    ru: D1. Выражение, применяемое к разным колонкам, оформляют макросом Jinja в `macros/` и вызывают `{{ normalize_status('status') }}`. Ephemeral-модель возвращает набор строк, а не выражение, seed хранит данные, а строка в `vars` не параметризуется колонкой и усложняет чтение кода.
+- id: q62
+  section: main
+  multi: true
+  difficulty: сложный
+  level:
+    ru: 🟥 анализ
+  topic:
+    ru: D5 · Unit test details
+  text:
+    ru: Which two statements about dbt unit tests are true? (Choose two.)
+  options:
+  - text:
+      ru: In `given`, you may specify only the columns that the model under test uses
+    correct: true
+  - text:
+      ru: '`expect` may list only the columns that you want to compare'
+    correct: true
+  - text:
+      ru: Unit tests read their input rows from the production tables of the warehouse
+    correct: false
+  - text:
+      ru: Unit tests are supported for Python models in the same way as for SQL models
+    correct: false
+  - text:
+      ru: In `dbt build`, a unit test runs after the model it tests has been built
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D5. В `given` достаточно колонок, которые использует модель, а в `expect` — тех, что нужно сравнить; остальные можно не указывать. Данные для unit-теста берутся из моков в YAML, а не из таблиц, тесты поддерживаются для SQL-моделей, а `dbt build` запускает unit-тест до сборки модели, чтобы не материализовать модель с неверной логикой.
+- id: q63
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟩 понимание
+  topic:
+    ru: D6 · Exposure fields
+  text:
+    ru: Which fields are required to declare an exposure in a properties file?
+  options:
+  - text:
+      ru: '`name`, `url`, and `maturity`'
+    correct: false
+  - text:
+      ru: '`name`, `type`, and `owner`'
+    correct: true
+  - text:
+      ru: '`name`, `type`, and `depends_on`'
+    correct: false
+  - text:
+      ru: '`name`, `owner`, and `tags`'
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: D6. Обязательные поля exposure — `name`, `type` (dashboard, notebook, analysis, ml, application) и `owner` (имя или email). `depends_on`, `url`, `maturity` и теги необязательны, хотя `depends_on` нужен, чтобы exposure попал в lineage.
+- id: q64
+  section: main
+  multi: false
+  difficulty: простой
+  level:
+    ru: 🟩 понимание
+  topic:
+    ru: D1 · Modularity
+  text:
+    ru: Which layering of models follows dbt project structure best practices?
+  options:
+  - text:
+      ru: Marts read raw tables, and staging models are built on top of the marts
+    correct: false
+  - text:
+      ru: One large model per mart reads the sources directly and contains all the logic of the business rules
+    correct: false
+  - text:
+      ru: Staging models join several sources and aggregate them for the business users
+    correct: false
+  - text:
+      ru: Staging models clean one source each; marts combine them into business entities
+    correct: true
+  hints:
+    ru: []
+  explanation:
+    ru: 'D1. Рекомендуемая структура: staging — по одной модели на таблицу источника с лёгкой очисткой (переименование, приведение типов), при необходимости intermediate для сложной логики, и marts — бизнес-сущности и витрины. Так логика не дублируется, а граф остаётся читаемым; остальные варианты нарушают направление зависимостей или смешивают слои.'
+- id: q65
+  section: main
+  multi: false
+  difficulty: средний
+  level:
+    ru: 🟨 применение
+  topic:
+    ru: D1 · Choosing a materialization
+  text:
+    ru: A mart is read by BI dashboards hundreds of times per day. It joins several tables with about 500 million rows, and its data changes only after the nightly load. How should you materialize it?
+  options:
+  - text:
+      ru: As a `view`, so that every dashboard query sees the latest source data
+    correct: false
+  - text:
+      ru: As `ephemeral`, so that the joins are inlined into every dashboard query
+    correct: false
+  - text:
+      ru: As a `table`, rebuilt once after the nightly load
+    correct: true
+  - text:
+      ru: As a `snapshot`, so that every nightly run keeps a copy of the mart
+    correct: false
+  hints:
+    ru: []
+  explanation:
+    ru: 'D1. Дорогие соединения, частое чтение и редкое обновление — случай для `table` (или incremental, если данных много): расчёт выполняется один раз, а дашборды читают готовый результат. `view` пересчитывал бы соединения при каждом запросе, `ephemeral` вообще не создаёт объект, а `snapshot` нужен для истории изменений источника.'
