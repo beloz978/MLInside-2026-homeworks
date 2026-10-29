@@ -20,6 +20,7 @@
     python scripts/check_hw.py --no-run        # по уже собранным artefacts target/
     python scripts/check_hw.py --no-gh         # без обращения к GitHub
     python scripts/check_hw.py --json          # отчёт в JSON
+    python scripts/check_hw.py --settings <проект>/scripts/settings.yml   # настройки другого проекта
 """
 from __future__ import annotations
 
@@ -29,50 +30,27 @@ import os
 import re
 import subprocess
 import sys
-from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import yaml
 
-ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from db import table_ref  # noqa: E402
+import settings  # noqa: E402
+import olist_data  # noqa: E402
+from criteria import Criterion, points as _points, print_report, report_json  # noqa: E402
 from envload import load_env  # noqa: E402
-from logger import EMO  # noqa: E402
-from settings import section  # noqa: E402
-from utils import close, read_json, resolve_path  # noqa: E402
+from utils import read_json, resolve_path  # noqa: E402
 
-load_env()
-S = section("check_hw")
+settings.use_from_argv(sys.argv)     # --settings выбирает файл настроек до чтения секций (разбор argparse — в main)
+ROOT = settings.root()
+load_env(ROOT / "config")
+S = settings.section("check_hw")
 T = S["thresholds"]
 
 MARTS, QA_PACKAGES, ORDER_HOOKS = S["marts"], S["qa_packages"], S["order_hooks"]
 REL_TOL, ABS_TOL = S["tolerance"]["rel"], S["tolerance"]["abs"]
+RULES = olist_data.MartRules(REL_TOL, ABS_TOL, S["segment_values"], T["min_segment_values"])
 HINTS = yaml.safe_load((ROOT / "data" / S["data_files"]["hints"]).read_text(encoding="utf-8"))
-
-
-@dataclass
-class Sub:
-    status: str  # ok | fail | warn | info  (warn/info баллов не влияют)
-    text: str
-    detail: str = ""
-
-
-@dataclass
-class Criterion:
-    n: int
-    title: str
-    subs: list[Sub] = field(default_factory=list)
-
-    @property
-    def passed(self) -> bool:
-        return any(s.status == "ok" for s in self.subs) and not any(s.status == "fail" for s in self.subs)
-
-    def add(self, ok: bool, text: str, detail: str = "") -> None:
-        self.subs.append(Sub("ok" if ok else "fail", text, detail))
-
-    def note(self, status: str, text: str, detail: str = "") -> None:
-        self.subs.append(Sub(status, text, detail))
 
 
 class Ctx:
@@ -175,139 +153,17 @@ def check_second_target(ctx: Ctx, second_target: str) -> None:
 # ----------------------------------------------------------------------------------------------
 # Сверка витрин с эталоном
 # ----------------------------------------------------------------------------------------------
-def mart_assertions(name: str, cf: dict, q) -> list[tuple[str, bool, str]]:
-    """Возвращает [(описание, ok, детали)]. q(sql) -> первое значение."""
-    g = cf["global"]
-    res: list[tuple[str, bool, str]] = []
-
-    def eq(desc, got, exp, rel=REL_TOL, abs_=0.0):
-        res.append((desc, close(got, exp, rel, abs_), f"получено {got}, ожидалось {exp}"))
-
-    if name == "mart_daily_state_metrics":
-        m = cf[name]
-        eq("sum(orders_cnt) = заказы с позициями", q("select sum(orders_cnt) from {t}"), g["orders_with_items"], 0)
-        eq("sum(gmv) = GMV", q("select sum(gmv) from {t}"), g["gmv"])
-        for r in m["orders_by_state_top"][:3]:
-            eq(f"заказы {r['state']}", q(f"select sum(orders_cnt) from {{t}} where customer_state='{r['state']}'"), r["orders"], 0)
-        eq("число строк (дата × штат)", q("select count(*) from {t}"), m["date_state_groups"], 0)
-    elif name == "mart_delivery_by_state":
-        m = cf[name]
-        eq("sum(delivered_orders) = доставлено с датой", q("select sum(delivered_orders) from {t}"), m["delivered_known"], 0)
-        eq("sum(late_orders) = опоздавшие", q("select sum(late_orders) from {t}"), m["late"], 0)
-        top = m["top_late_rate_states"][0]
-        eq(f"late_rate_pct {top['state']}", q(f"select max(late_rate_pct) from {{t}} where customer_state='{top['state']}'"),
-           top["late_rate_pct"], 0, ABS_TOL)
-    elif name == "mart_category_performance":
-        m = cf[name]
-        eq("sum(revenue) = GMV", q("select sum(revenue) from {t}"), g["gmv"])
-        for r in m["top_by_revenue"][:2]:
-            eq(f"revenue {r['category']}", q(f"select sum(revenue) from {{t}} where product_category='{r['category']}'"), r["revenue"])
-    elif name == "mart_customer_profile":
-        m = cf[name]
-        eq("число клиентов", q("select count(*) from {t}"), m["customers"], 0)
-        eq("sum(total_spent) = GMV", q("select sum(total_spent) from {t}"), g["gmv"])
-        eq("max(orders_cnt)", q("select max(orders_cnt) from {t}"), m["max_orders_per_customer"], 0)
-        eq("max(recency_days)", q("select max(recency_days) from {t}"), m["recency_days_quantiles"]["max"], 0, 1)
-        seg = {r[0] for r in q("select distinct segment from {t}", all_=True)}
-        res.append(("segment ⊂ {HIGH,MEDIUM,LOW}, >=2 значений", seg <= set(S["segment_values"]) and len(seg) >= T["min_segment_values"], f"значения: {sorted(map(str, seg))}"))
-    elif name == "mart_hourly_order_pattern":
-        m = cf[name]
-        eq("sum(orders_cnt)", q("select sum(orders_cnt) from {t}"), g["orders_with_items"], 0)
-        eq("число ячеек день×час", q("select count(*) from {t}"), m["dow_hour_cells"], 0)
-        c = m["peak_dow_hour_cell"]
-        eq(f"пик: день {c['dow']}, час {c['hour']}", q(f"select sum(orders_cnt) from {{t}} where day_of_week={c['dow']} and hour_of_day={c['hour']}"), c["orders"], 0)
-        eq("заказы в 16:00", q("select sum(orders_cnt) from {t} where hour_of_day=16"), m["by_hour"]["16"], 0)
-    elif name == "mart_seller_analytics":
-        m = cf[name]
-        eq("число продавцов", q("select count(*) from {t}"), m["sellers"], 0)
-        eq("sum(revenue) = GMV", q("select sum(revenue) from {t}"), g["gmv"])
-        t0 = m["top_by_revenue"][0]
-        eq("revenue топ-продавца", q(f"select sum(revenue) from {{t}} where seller_id='{t0['seller_id']}'"), t0["revenue"])
-    return res
-
-
 def check_marts(ctx: Ctx) -> dict[str, dict]:
     """Для каждой витрины из контракта: присутствует ли, есть ли колонки, сходятся ли цифры."""
-    import duckdb
-
-    present = {n["name"] for n in ctx.nodes("model")}
-    out: dict[str, dict] = {}
-    con = duckdb.connect(str(ctx.db), read_only=True) if ctx.db.exists() else None
-    for name in MARTS:
-        info = {"present": name in present, "columns_ok": False, "assert_ok": False, "problems": []}
-        out[name] = info
-        if not info["present"]:
-            continue
-        if con is None:
-            info["problems"].append(f"нет файла БД {ctx.db}")
-            continue
-        t = table_ref(con, name)
-        if not t:
-            info["problems"].append("таблицы нет в DuckDB (dbt build не создал?)")
-            continue
-        cols = {r[0].lower() for r in con.execute(f"select * from {t} limit 0").description}
-        need = [c.lower() for c in ctx.contract[name]["columns"]]
-        miss = [c for c in need if c not in cols]
-        info["columns_ok"] = not miss
-        if miss:
-            info["problems"].append(f"нет колонок: {', '.join(miss)}")
-            continue
-
-        def q(sql, all_=False, _t=t):
-            cur = con.execute(sql.replace("{t}", _t))
-            return cur.fetchall() if all_ else cur.fetchone()[0]
-
-        try:
-            results = mart_assertions(name, ctx.cf, q)
-        except Exception as e:  # noqa: BLE001
-            info["problems"].append(f"ошибка сверки: {type(e).__name__}: {str(e)[:120]}")
-            continue
-        bad = [f"{d} ({det})" for d, ok, det in results if not ok]
-        info["assert_ok"] = not bad
-        info["problems"] += bad
-    return out
+    return olist_data.check_marts(ctx.db, MARTS, {n["name"] for n in ctx.nodes("model")}, ctx.contract, ctx.cf, RULES)
 
 
 # ----------------------------------------------------------------------------------------------
 # Статические проверки
 # ----------------------------------------------------------------------------------------------
 def check_raw(ctx: Ctx) -> tuple[list[tuple[str, bool, str]], int, int]:
-    """Полнота исходных данных в DuckDB: таблицы, число строк, колонки, контрольные суммы.
-    Возвращает ([(таблица, ok, детали)], найдено_таблиц, всего_нужно)."""
-    import duckdb
-
     exp = json.loads((ROOT / "data" / S["data_files"]["raw_expectations"]).read_text(encoding="utf-8"))
-    tol = exp["tolerance"]
-    res: list[tuple[str, bool, str]] = []
-    if not ctx.db.exists():
-        return [(k, False, f"нет файла БД {ctx.db}") for k in exp["required"]], 0, len(exp["required"])
-    con = duckdb.connect(str(ctx.db), read_only=True)
-    found = 0
-    for key, e in exp["required"].items():
-        r = con.execute("select table_schema, table_name from information_schema.tables where lower(table_name) in (%s) "
-                        "and table_schema not in ('information_schema','pg_catalog') "
-                        "order by table_type='VIEW', table_schema limit 1" % ",".join("?" * len(e["candidates"])),
-                        e["candidates"]).fetchone()
-        if not r:
-            res.append((key, False, f"таблица не найдена (ищу: {', '.join(e['candidates'][:2])}…)"))
-            continue
-        found += 1
-        t = f'"{r[0]}"."{r[1]}"'
-        probs = []
-        n = con.execute(f"select count(*) from {t}").fetchone()[0]
-        if n != e["rows"]:
-            probs.append(f"строк {n}, ожидалось {e['rows']}")
-        cols = {c[0].lower() for c in con.execute(f"select * from {t} limit 0").description}
-        miss = [c for c in e["columns"] if c not in cols]
-        if miss:
-            probs.append(f"нет колонок: {', '.join(miss)}")
-        else:
-            for a in e["aggregates"]:
-                got = con.execute(f"select {a['sql']} from {t}").fetchone()[0]
-                if got is None or abs(float(got) - a["expected"]) > max(0.5, tol * abs(a["expected"])):
-                    probs.append(f"{a['name']} = {got}, ожидалось {a['expected']}")
-        res.append((key, not probs, f"{r[0]}.{r[1]}: " + ("; ".join(probs) if probs else f"{n} строк, колонки и суммы в норме")))
-    return res, found, len(exp["required"])
+    return olist_data.check_raw(ctx.db, exp)
 
 
 def tests_for(ctx: Ctx, model_unique_id: str) -> list[dict]:
@@ -467,6 +323,7 @@ def level_name(points: int) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--settings", help="settings.yml проекта (по умолчанию — этого dbt/); см. scripts/settings.py")
     ap.add_argument("--no-run", action="store_true", help="не запускать dbt, использовать готовые target/ и DuckDB")
     ap.add_argument("--with-second", action="store_true", help="вместе с --no-run: всё же собрать проект на втором таргете")
     ap.add_argument("--no-gh", action="store_true", help="не обращаться к GitHub API (критерий 7 и CI будут не пройдены)")
@@ -526,35 +383,13 @@ def main() -> int:
         gh = gh_api.pr_report(project)
 
     criteria = evaluate(ctx, gh)
-    points = sum(c.passed for c in criteria)
+    points = _points(criteria)
 
     if a.json:
-        print(json.dumps({"points": points, "max": 10, "level": level_name(points), "project": str(project),
-                          "criteria": [{"n": c.n, "title": c.title, "passed": c.passed, "subs": [asdict(s) for s in c.subs]} for c in criteria]},
-                         ensure_ascii=False, indent=2))
+        print(report_json(criteria, max_points=10, level=level_name(points), project=project))
     else:
-        print(f"\n{'=' * 8} 📋 Отчёт: ДЗ dbt (Olist) {'=' * 8}\nПроект: {project}")
-        for c in criteria:
-            done = sum(s.status == "ok" for s in c.subs)
-            total = sum(s.status in ("ok", "fail") for s in c.subs)
-            print(f"\n{'🟢' if c.passed else '🔴'} Балл {c.n}/10 — {c.title}  [{done}/{total}]")
-            for s in c.subs:
-                print(f"   {EMO[s.status]} {s.text}")
-                if s.detail and (s.status != "ok" or s.text.startswith(("≥", "PR найден"))):
-                    for ln in s.detail.splitlines():
-                        print(f"        {ln}")
-                h = hint_for(s.text) if s.status in ("fail", "warn") else None
-                if h:
-                    print(f"        💡 {h['hint']}")
-                    if h.get("url"):
-                        print(f"        🔗 {h['url']}")
-        bar = "".join("🟩" if c.passed else "⬜" for c in criteria)
-        print(f"\n{'=' * 8} 🏁 Итог {'=' * 8}\n{bar}\n🎯 Проект прошёл на {points} из 10 баллов — уровень «{level_name(points)}»")
-        miss = [f"{c.n}. {c.title}" for c in criteria if not c.passed]
-        if miss:
-            print("📌 Не хватает:")
-            for m in miss:
-                print(f"   • {m}")
+        print_report(criteria, title="ДЗ dbt (Olist)", project=project, level=level_name(points), max_points=10,
+                     hint_for=hint_for, detail_ok_prefixes=("≥", "PR найден"))
     return 0 if points >= a.min else 1
 
 

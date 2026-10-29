@@ -76,3 +76,7 @@ doctor:
     - {module: dbt, package: dbt-core}
   env_required: [HW_DBT_PROJECT_DIR, HW_DBT_PROFILES_DIR, OLIST_DUCKDB_PATH]
   env_optional: [OLIST_CSV_DIR, HW_DBT_PROFILE, HW_DBT_TARGETS, HW_DBT_TARGET, CONTROL_FIGURES_JSON]
+  paths:                         # env — переменная с каталогом (относительно корня проекта), file — что в нём должно лежать
+    - {env: HW_DBT_PROJECT_DIR, file: dbt_project.yml}
+    - {env: HW_DBT_PROFILES_DIR, file: profiles.yml}
+  data_files: [control_figures.json, marts_contract.json, raw_expectations.json, hints.yaml]   # в <проект>/data/

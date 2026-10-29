@@ -1,0 +1,12 @@
+# Фикстура чекера: workflow проверяет определения Dagster и запускает pytest (GitHub его не запускает — не корень репо).
+name: ci
+on: [pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run dagster definitions validate -m t9_proj
+      - run: uv run pytest
