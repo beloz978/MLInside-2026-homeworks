@@ -1,0 +1,82 @@
+---
+# /Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/test-4-dagster/.ai/plans/plan_261008_01-v2-dagster-dlt--cheeky-crafting-otter/PLAN.yml — structured metadata for the plan in this directory
+# Source-of-truth for Origin/Sessions/Todo/DoD/Tracker refs. Edit freely.
+# `just refresh-plan-dir` re-renders it from PLAN.md but keeps tracker_refs and merges sessions.
+schema_version: 2
+
+plan:
+  basename:        "cheeky-crafting-otter"
+  title:           "Plan v2: Dagster + dlt + dbt (PokeAPI -> DuckDB -> dbt models), dg layout"
+  source_path:     "/Users/user/.claude/plans/cheeky-crafting-otter.md"
+  hardlink_inode:  58296691
+  layout_version:  dir
+  target_dir:      "/Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/test-4-dagster/.ai/plans/plan_261008_01-v2-dagster-dlt--cheeky-crafting-otter"     # absolute dir of this plan
+  target_path:     "/Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/test-4-dagster/.ai/plans/plan_261008_01-v2-dagster-dlt--cheeky-crafting-otter/README.md"      # absolute path of PLAN.md (hardlink to source_path)
+  rel_dir:         ".ai/plans/plan_261008_01-v2-dagster-dlt--cheeky-crafting-otter"        # relative to origin.project_dir
+  rel_path:        ".ai/plans/plan_261008_01-v2-dagster-dlt--cheeky-crafting-otter/README.md"
+
+origin:
+  source_path:    "/Users/user/.claude/plans/cheeky-crafting-otter.md"
+  source_mtime:   "2026-10-08T18:32:29"
+  imported_at:    "2026-10-30T15:59:19Z"
+  session_id:     "ea97c314-e4f0-4515-970a-7447a20ada2a"   # = sessions[0].id (kept for older consumers)
+  project_dir:    "/Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/test-4-dagster"
+  git_branch:     "HEAD"
+  git_commit:     "44bef45"
+
+# Every session whose transcript mentions the plan, in this checkout; first = origin.
+# Found by scripts/find-sessions.py; older entries are kept when a refresh no longer finds them.
+sessions:
+  - id: "ea97c314-e4f0-4515-970a-7447a20ada2a"
+    role: "origin"
+    name: "draft-dbt-test-questions"
+    model: "claude-sonnet-5-5"
+    root: "/Users/user/gi/@beloz978/MLInside-2026-homeworks"
+    worktree: "/Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/test-3-dbt"
+    branch: "docs/test-3-dbt-questions"
+    resume_cli: "cd /Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/test-3-dbt && claude --resume ea97c314-e4f0-4515-970a-7447a20ada2a"
+    first_seen: "2026-10-13T20:21:29.979Z"
+    last_active: "2026-10-23T14:53:23"
+  - id: "28ca2a42-7985-4d3c-868b-8a3e6a590b9e"
+    role: "later"
+    name: "dagster hw generation plan"
+    model: "claude-fable-5-1"
+    root: "/Users/user/gi/@beloz978/MLInside-2026-homeworks"
+    worktree: "/Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/test-4-dagster"
+    branch: "docs/test-4-dagster-questions"
+    resume_cli: "cd /Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/test-4-dagster && claude --resume 28ca2a42-7985-4d3c-868b-8a3e6a590b9e"
+    first_seen: "2026-10-16T16:03:00.427Z"
+    last_active: "2026-10-30T00:39:19"
+  - id: "cbc397b1-6ae4-46ce-ac36-12e2ea1a2dc9"
+    role: "later"
+    name: "Branch cleanup and skill improvements"
+    model: "claude-opus-5-5"
+    root: "/Users/user/gi/@beloz978/MLInside-2026-homeworks"
+    worktree: "/Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/test-4-dagster"
+    branch: "HEAD"
+    resume_cli: "cd /Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/test-4-dagster && claude --resume cbc397b1-6ae4-46ce-ac36-12e2ea1a2dc9"
+    first_seen: "2026-10-29T18:04:01.969Z"
+    last_active: "2026-10-30T19:58:18"
+
+todo:
+  []
+
+dod:
+  - "Implementation matches plan"
+  - "Tests pass (or N/A documented)"
+  - "Documentation/CHANGELOG updated"
+  - "Changes committed and pushed"
+
+# Where the plan is tracked. Defaults come from settings trackers.default (Linear + GitHub issues);
+# Jira only if settings trackers.jira is true (then a legacy jira_refs block is kept as is).
+tracker_refs:
+  default_trackers: ["linear", "gh-issues"]
+  todo:      {"id": "20261008_01_v2-dagster-dlt", "file": ".ai/TODO.md"}
+  linear:    null
+  gh_issue:  null
+
+# Related tasks / handoffs / plans (repo-relative paths or "branch:path"). Kept across refreshes.
+related:
+  tasks:     []
+  handoffs:  []
+  plans:     []

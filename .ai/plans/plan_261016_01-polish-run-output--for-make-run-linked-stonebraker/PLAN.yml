@@ -1,0 +1,52 @@
+---
+# /Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/test-4-dagster/.ai/plans/plan_261016_01-polish-run-output--for-make-run-linked-stonebraker/PLAN.yml — structured metadata for the plan in this directory
+# Source-of-truth for Origin/Sessions/Todo/DoD/Tracker refs. Edit freely.
+# `just refresh-plan-dir` re-renders it from PLAN.md but keeps tracker_refs and merges sessions.
+schema_version: 2
+
+plan:
+  basename:        "for-make-run-linked-stonebraker"
+  title:           "Polish `make run` output (wizard / doctor / check_db)"
+  source_path:     "/Users/user/.claude/plans/for-make-run-linked-stonebraker.md"
+  hardlink_inode:  63307884
+  layout_version:  dir
+  target_dir:      "/Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/test-4-dagster/.ai/plans/plan_261016_01-polish-run-output--for-make-run-linked-stonebraker"     # absolute dir of this plan
+  target_path:     "/Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/test-4-dagster/.ai/plans/plan_261016_01-polish-run-output--for-make-run-linked-stonebraker/README.md"      # absolute path of PLAN.md (hardlink to source_path)
+  rel_dir:         ".ai/plans/plan_261016_01-polish-run-output--for-make-run-linked-stonebraker"        # relative to origin.project_dir
+  rel_path:        ".ai/plans/plan_261016_01-polish-run-output--for-make-run-linked-stonebraker/README.md"
+
+origin:
+  source_path:    "/Users/user/.claude/plans/for-make-run-linked-stonebraker.md"
+  source_mtime:   "2026-10-16T16:24:19"
+  imported_at:    "2026-10-30T16:00:45Z"
+  session_id:     "-"   # = sessions[0].id (kept for older consumers)
+  project_dir:    "/Users/user/gi/@beloz978/MLInside-2026-homeworks/.claude/worktrees/test-4-dagster"
+  git_branch:     "HEAD"
+  git_commit:     "44bef45"
+
+# Every session whose transcript mentions the plan, in this checkout; first = origin.
+# Found by scripts/find-sessions.py; older entries are kept when a refresh no longer finds them.
+sessions:
+  []
+
+todo:
+  []
+
+dod:
+  - "`make test` (pytest, updated test_logger + new small test for paint no-tty)."
+  - "`make run` with `WIZARD_ARGS=-ni` and with a missing clickhouse target: check each listed line visually."
+  - "Work on branch `fix/run-output` from current branch; commit, ask before push (dataengy/beloz978 account per remote)."
+
+# Where the plan is tracked. Defaults come from settings trackers.default (Linear + GitHub issues);
+# Jira only if settings trackers.jira is true (then a legacy jira_refs block is kept as is).
+tracker_refs:
+  default_trackers: ["linear", "gh-issues"]
+  todo:      {"id": "20261016_01_polish-run-output", "file": ".ai/TODO.md"}
+  linear:    null
+  gh_issue:  null
+
+# Related tasks / handoffs / plans (repo-relative paths or "branch:path"). Kept across refreshes.
+related:
+  tasks:     []
+  handoffs:  []
+  plans:     []
