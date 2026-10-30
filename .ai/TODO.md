@@ -14,4 +14,4 @@ Planned work, grouped by subproject; inside each section, sorted by priority (P0
 ## Handoffs
 
 - [ ] [2026-10-29] [P1] Resume from handoff: [HANDOFF-261029-mlinside-landing.md](WiP/HANDOFF-261029-mlinside-landing.md) — Handoff: MLInside branch landing (2026-10-29)
-  Resume: `git -C /private/tmp/claude-501/makeux-port push origin feat/make-ux-port`
+  Resume: `git -C /Users/user/gi/@beloz978/MLInside-2026-homeworks status --porcelain && git -C /Users/user/gi/@beloz978/MLInside-2026-homeworks branch -a`
